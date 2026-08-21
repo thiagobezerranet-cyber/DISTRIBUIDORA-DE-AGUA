@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f2744" />
+  <title>Água – Controle de Galões e Vendas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            evg: {
+              blue: '#1e3a5f',
+              dark: '#0f2744',
+              red: '#c41e3a',
+              light: '#f0f4f8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .sidebar-link.active { background-color: #1e3a5f; color: white; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #1e3a5f; outline-offset: 1px; }
+    .badge-pago { background: #dcfce7; color: #166534; }
+    .badge-aberto { background: #fee2e2; color: #991b1b; }
+    .badge-parcial { background: #fef9c3; color: #854d0e; }
+    html, body { -webkit-tap-highlight-color: transparent; }
+    @media (max-width: 767px) {
+      body { padding-bottom: 76px; }
+      .sidebar-link { min-height: 48px; font-size: 15px; }
+      input, select, textarea { font-size: 16px !important; }
+      .mobile-hide-table { display: none !important; }
+    }
+    @media (min-width: 768px) {
+      .bottom-nav { display: none !important; }
+      .mobile-only-cards { display: none !important; }
+    }
+    .bottom-nav-btn.active { color: #1e3a5f; }
+    .bottom-nav-btn.active .nav-icon { background: #e8eef5; }
+  </style>
+</head>
+<body class="bg-evg-light text-gray-800 font-sans">
+
+  <div id="app" class="min-h-screen flex">
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden" onclick="fecharMenuMobile()"></div>
+
+    <aside id="sidebar" class="w-64 bg-evg-dark text-white flex flex-col fixed h-full z-40
+           transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-out">
+      <div class="p-5 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-evg-red flex items-center justify-center font-bold text-sm">Água</div>
+          <div>
+            <div class="font-semibold text-sm">Controle de Galões</div>
+            <div class="text-xs text-white/60">Entregas & Estoque</div>
+          </div>
+        </div>
+        <button type="button" class="md:hidden text-white/70 hover:text-white text-xl px-2" onclick="fecharMenuMobile()">×</button>
+      </div>
+
+      <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+        <button onclick="showPage('dashboard')" data-page="dashboard" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>📊</span> Dashboard
+        </button>
+        <button onclick="showPage('nova-venda')" data-page="nova-venda" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>🚚</span> Nova Venda / Entrega
+        </button>
+        <button onclick="showPage('clientes')" data-page="clientes" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>👥</span> Clientes
+        </button>
+        <button onclick="showPage('estoque')" data-page="estoque" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>📦</span> Estoque de Galões
+        </button>
+        <button onclick="showPage('a-receber')" data-page="a-receber" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>💰</span> A Receber
+        </button>
+        <button onclick="showPage('relatorios')" data-page="relatorios" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>📋</span> Relatórios
+        </button>
+        <button onclick="showPage('funcionarios')" data-page="funcionarios" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>👷</span> Funcionários
+        </button>
+        <button onclick="showPage('config')" data-page="config" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>⚙️</span> Preços & Config
+        </button>
+      </nav>
+
+      <div class="p-4 border-t border-white/10">
+        <div class="text-xs text-white/50 mb-1">Dados salvos neste computador</div>
+        <div class="text-xs text-white/40">Versão local • Sem login</div>
+      </div>
+    </aside>
+
+    <main class="flex-1 w-full min-w-0 md:ml-64">
+      <div class="md:hidden sticky top-0 z-20 bg-evg-dark text-white flex items-center gap-3 px-4 py-3 shadow">
+        <button type="button" onclick="abrirMenuMobile()" class="text-2xl leading-none px-1">☰</button>
+        <div class="font-semibold text-sm">Água – Controle</div>
+      </div>
+
+      <div class="p-4 sm:p-6">
+
+        <!-- DASHBOARD -->
+        <div id="page-dashboard" class="page hidden">
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">Dashboard</h1>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-evg-blue">
+              <div class="text-xs text-gray-500">Vendido hoje</div>
+              <div class="text-2xl font-bold text-evg-blue mt-1" id="dash-hoje-valor">R$ 0</div>
+              <div class="text-xs text-gray-400 mt-1" id="dash-hoje-galoes">0 galões</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+              <div class="text-xs text-gray-500">Vendido no mês</div>
+              <div class="text-2xl font-bold text-green-600 mt-1" id="dash-mes-valor">R$ 0</div>
+              <div class="text-xs text-gray-400 mt-1" id="dash-mes-galoes">0 galões</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-amber-500">
+              <div class="text-xs text-gray-500">A receber</div>
+              <div class="text-2xl font-bold text-amber-600 mt-1" id="dash-a-receber">R$ 0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-evg-red">
+              <div class="text-xs text-gray-500">Clientes</div>
+              <div class="text-2xl font-bold text-evg-red mt-1" id="dash-clientes">0</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <div class="bg-white rounded-xl shadow p-5">
+              <h2 class="font-semibold text-evg-blue mb-3">Entregas de hoje (por pessoa)</h2>
+              <div id="dash-entregas-hoje" class="space-y-2 text-sm"></div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-5">
+              <h2 class="font-semibold text-evg-blue mb-3">Estoque por ano + Validade</h2>
+              <div id="dash-estoque-anos" class="space-y-2 text-sm"></div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5">
+            <h2 class="font-semibold text-evg-blue mb-3">Últimas vendas</h2>
+            <div id="dash-ultimas-vendas" class="space-y-2 text-sm"></div>
+          </div>
+        </div>
+
+        <!-- NOVA VENDA -->
+        <div id="page-nova-venda" class="page hidden">
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">Nova Venda / Entrega</h1>
+          <form id="form-venda" class="bg-white rounded-xl shadow p-5 sm:p-6 space-y-5 max-w-3xl">
+            <!-- Cliente -->
+            <div>
+              <label class="block text-sm font-medium mb-1">Cliente *</label>
+              <div class="flex gap-2">
+                <div class="relative flex-1">
+                  <input type="text" id="venda-busca-cliente" placeholder="Digite o nome do cliente..." class="w-full px-4 py-2.5 border rounded-lg text-sm" autocomplete="off" oninput="buscarClienteVenda()" onfocus="buscarClienteVenda()">
+                  <div id="venda-lista-clientes" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-52 overflow-y-auto"></div>
+                </div>
+                <button type="button" onclick="abrirModalClienteNaVenda()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap shrink-0">
+                  + Novo
+                </button>
+              </div>
+              <input type="hidden" id="venda-cliente-id">
+              <div id="venda-cliente-selecionado" class="mt-2 text-sm text-evg-blue hidden"></div>
+            </div>
+
+            <!-- Galões -->
+            <div class="border rounded-lg p-4 bg-gray-50">
+              <h3 class="font-medium text-evg-blue mb-3">Galões de 20L</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-sm font-medium mb-1">Ano do galão *</label>
+                  <select id="venda-ano-galao" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="atualizarInfoEstoqueVenda()"></select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">Quantidade *</label>
+                  <input type="number" id="venda-qtd-galao" min="1" value="1" class="w-full px-3 py-2 border rounded-lg text-sm" oninput="calcularTotalVenda()">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">Preço unit. (R$)</label>
+                  <input type="number" id="venda-preco-galao" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" oninput="calcularTotalVenda()">
+                </div>
+              </div>
+              <div class="mt-2 text-xs text-gray-500" id="venda-estoque-info">Estoque disponível: —</div>
+            </div>
+
+            <!-- Retirada ou Entrega -->
+            <div class="border rounded-lg p-4 bg-blue-50">
+              <h3 class="font-medium text-evg-blue mb-3">Tipo de operação</h3>
+              <div class="flex flex-wrap gap-4 mb-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="tipo-op" value="retirada" checked onchange="toggleEntrega()"> Retirada (sem taxa)
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="tipo-op" value="entrega" onchange="toggleEntrega()"> Entrega (+ taxa)
+                </label>
+              </div>
+              <div id="bloco-entrega" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium mb-1">Taxa de entrega (R$)</label>
+                  <input type="number" id="venda-taxa-entrega" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm" oninput="calcularTotalVenda()">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">Quem entregou? *</label>
+                  <select id="venda-entregador" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    <option value="dono">Dono</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Vazios -->
+            <div class="border rounded-lg p-4 bg-amber-50">
+              <h3 class="font-medium text-amber-800 mb-3">Retorno de galões vazios</h3>
+              <p class="text-xs text-gray-600 mb-3">Escolha <strong>apenas uma</strong> opção:</p>
+              <div class="space-y-3">
+                <label class="flex items-start gap-2 cursor-pointer">
+                  <input type="radio" name="opcao-vazio" value="nenhum" checked class="mt-1" onchange="onOpcaoVazioChange()">
+                  <span class="text-sm">Não se aplica / não trouxe vazio agora</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                  <input type="radio" name="opcao-vazio" value="devolveu" class="mt-1" onchange="onOpcaoVazioChange()">
+                  <span class="text-sm">Devolveu o(s) vazio(s) agora</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                  <input type="radio" name="opcao-vazio" value="pendente" class="mt-1" onchange="onOpcaoVazioChange()">
+                  <span class="text-sm">Ficou para trazer depois (cliente ficou com o vazio)</span>
+                </label>
+              </div>
+              <div id="bloco-qtd-vazio" class="mt-3 hidden">
+                <label class="block text-sm font-medium mb-1">Quantidade de vazios</label>
+                <input type="number" id="venda-qtd-vazio" min="1" value="1" class="w-full max-w-xs px-3 py-2 border rounded-lg text-sm">
+                <p class="text-xs text-gray-500 mt-1" id="hint-vazio"></p>
+              </div>
+              <!-- campos ocultos usados no submit -->
+              <input type="hidden" id="venda-vazios-devolvidos" value="0">
+              <input type="hidden" id="venda-vazios-pendentes" value="0">
+            </div>
+
+            <!-- Outros produtos -->
+            <div>
+              <label class="block text-sm font-medium mb-1">Outros produtos (bomba, filtro...)</label>
+              <select id="venda-outro-produto" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="calcularTotalVenda()">
+                <option value="">Nenhum</option>
+              </select>
+              <div class="grid grid-cols-2 gap-3 mt-2">
+                <input type="number" id="venda-outro-qtd" min="0" value="0" placeholder="Qtd" class="px-3 py-2 border rounded-lg text-sm" oninput="calcularTotalVenda()">
+                <input type="number" id="venda-outro-preco" step="0.01" min="0" value="0" placeholder="Preço un." class="px-3 py-2 border rounded-lg text-sm" oninput="calcularTotalVenda()">
+              </div>
+            </div>
+
+            <!-- Total e pagamento -->
+            <div class="bg-evg-blue/5 rounded-lg p-4">
+              <div class="flex justify-between items-center mb-3">
+                <span class="font-medium">Total da venda</span>
+                <span class="text-xl font-bold text-evg-blue" id="venda-total-display">R$ 0,00</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium mb-1">Status do pagamento *</label>
+                  <select id="venda-status-pag" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="onStatusPagChange()">
+                    <option value="pago">Pago</option>
+                    <option value="a_pagar">A pagar</option>
+                    <option value="parcial">Parcial</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">Valor pago agora (R$)</label>
+                  <input type="number" id="venda-valor-pago" step="0.01" min="0" value="0" class="w-full px-3 py-2 border rounded-lg text-sm" oninput="atualizarTroco()">
+                  <p class="text-xs text-gray-500 mt-1" id="venda-troco-info"></p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Observações</label>
+              <textarea id="venda-obs" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea>
+            </div>
+
+            <div class="flex flex-col sm:flex-row flex-wrap gap-3 pt-2 border-t">
+              <button type="submit" class="w-full sm:w-auto bg-evg-blue hover:bg-evg-dark text-white px-6 py-3 rounded-lg font-medium text-base">Salvar Venda</button>
+              <button type="button" onclick="limparFormVenda()" class="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">Limpar</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- CLIENTES -->
+        <div id="page-clientes" class="page hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h1 class="text-xl sm:text-2xl font-bold text-evg-blue">Clientes</h1>
+            <button onclick="abrirModalCliente()" class="bg-evg-blue hover:bg-evg-dark text-white px-4 py-2 rounded-lg text-sm font-medium">+ Novo Cliente</button>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4 mb-4">
+            <input type="text" id="busca-cliente" placeholder="Buscar por nome, telefone ou endereço..." class="w-full px-4 py-3 border rounded-lg text-sm" oninput="renderClientes()">
+          </div>
+          <!-- Cards no celular -->
+          <div id="clientes-cards" class="mobile-only-cards space-y-3 md:hidden"></div>
+          <div class="bg-white rounded-xl shadow overflow-hidden hidden md:block">
+            <div class="overflow-x-auto mobile-hide-table">
+              <table class="w-full text-sm">
+                <thead class="bg-evg-blue text-white">
+                  <tr>
+                    <th class="text-left px-4 py-3">Nome</th>
+                    <th class="text-left px-4 py-3">WhatsApp</th>
+                    <th class="text-left px-4 py-3">Endereço</th>
+                    <th class="text-left px-4 py-3">Galões com ele</th>
+                    <th class="text-right px-4 py-3">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabela-clientes" class="divide-y divide-gray-100"></tbody>
+              </table>
+            </div>
+            <div id="sem-clientes" class="hidden p-8 text-center text-gray-500">Nenhum cliente cadastrado.</div>
+          </div>
+        </div>
+
+        <!-- ESTOQUE -->
+        <div id="page-estoque" class="page hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h1 class="text-xl sm:text-2xl font-bold text-evg-blue">Estoque de Galões</h1>
+            <button onclick="abrirModalEntrada()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">+ Entrada de galões</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+              <div class="text-xs text-gray-500">Cheios em estoque</div>
+              <div class="text-2xl font-bold text-blue-600 mt-1" id="estoque-cheios">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-gray-400">
+              <div class="text-xs text-gray-500">Vazios em estoque</div>
+              <div class="text-2xl font-bold text-gray-600 mt-1" id="estoque-vazios">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-amber-500">
+              <div class="text-xs text-gray-500">Com clientes</div>
+              <div class="text-2xl font-bold text-amber-600 mt-1" id="estoque-com-clientes">0</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow p-5 mb-6">
+            <h2 class="font-semibold text-evg-blue mb-4">Por ano de fabricação (validade = ano + 3)</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="text-left px-3 py-2">Ano</th>
+                    <th class="text-center px-3 py-2">Cheios</th>
+                    <th class="text-center px-3 py-2">Vazios</th>
+                    <th class="text-center px-3 py-2">Com clientes</th>
+                    <th class="text-center px-3 py-2">Total</th>
+                    <th class="text-left px-3 py-2">Vence</th>
+                    <th class="text-left px-3 py-2">Status</th>
+                    <th class="text-right px-3 py-2">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabela-estoque-anos"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5 mb-6">
+            <h2 class="font-semibold text-evg-blue mb-2">Galões com clientes (dar baixa)</h2>
+            <p class="text-xs text-gray-500 mb-3">Quando o cliente trazer o vazio que ficou pendente, use o botão <strong>Devolveu vazio</strong> aqui ou em Clientes.</p>
+            <div id="estoque-com-clientes-lista" class="space-y-2 text-sm"></div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5">
+            <h2 class="font-semibold text-evg-blue mb-3">Últimas movimentações</h2>
+            <div id="estoque-movimentacoes" class="space-y-2 text-sm max-h-64 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <!-- A RECEBER -->
+        <div id="page-a-receber" class="page hidden">
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">A Receber</h1>
+          <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-evg-blue text-white">
+                  <tr>
+                    <th class="text-left px-4 py-3">Data</th>
+                    <th class="text-left px-4 py-3">Cliente</th>
+                    <th class="text-left px-4 py-3">Total</th>
+                    <th class="text-left px-4 py-3">Pago</th>
+                    <th class="text-left px-4 py-3">Restante</th>
+                    <th class="text-left px-4 py-3">Status</th>
+                    <th class="text-right px-4 py-3">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="tabela-a-receber" class="divide-y divide-gray-100"></tbody>
+              </table>
+            </div>
+            <div id="sem-a-receber" class="hidden p-8 text-center text-gray-500">Nenhuma conta em aberto.</div>
+          </div>
+        </div>
+
+        <!-- RELATÓRIOS -->
+        <div id="page-relatorios" class="page hidden">
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">Relatórios</h1>
+          <div class="flex flex-wrap gap-3 mb-6">
+            <button onclick="setPeriodoRelatorio('hoje')" id="btn-rel-hoje" class="px-4 py-2 rounded-lg text-sm font-medium bg-evg-blue text-white">Hoje</button>
+            <button onclick="setPeriodoRelatorio('semana')" id="btn-rel-semana" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border">Esta semana</button>
+            <button onclick="setPeriodoRelatorio('mes')" id="btn-rel-mes" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border">Este mês</button>
+            <button onclick="setPeriodoRelatorio('mes-passado')" id="btn-rel-mes-passado" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border">Mês passado</button>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow p-4">
+              <div class="text-xs text-gray-500">Total vendido</div>
+              <div class="text-xl font-bold text-evg-blue" id="rel-total-valor">R$ 0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4">
+              <div class="text-xs text-gray-500">Galões entregues</div>
+              <div class="text-xl font-bold text-green-600" id="rel-total-galoes">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4">
+              <div class="text-xs text-gray-500">Vazios recebidos</div>
+              <div class="text-xl font-bold text-gray-600" id="rel-vazios-recebidos">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4">
+              <div class="text-xs text-gray-500">Qtd. vendas</div>
+              <div class="text-xl font-bold text-evg-red" id="rel-qtd-vendas">0</div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5 mb-6">
+            <h2 class="font-semibold text-evg-blue mb-3">Entregas por pessoa (taxa de entrega)</h2>
+            <div id="rel-entregas-pessoa" class="space-y-2 text-sm"></div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5">
+            <h2 class="font-semibold text-evg-blue mb-3">Detalhamento das vendas</h2>
+            <div id="rel-detalhe" class="space-y-2 text-sm max-h-96 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <!-- FUNCIONÁRIOS -->
+        <div id="page-funcionarios" class="page hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h1 class="text-xl sm:text-2xl font-bold text-evg-blue">Funcionários / Entregadores</h1>
+            <button onclick="abrirModalFuncionario()" class="bg-evg-blue hover:bg-evg-dark text-white px-4 py-2 rounded-lg text-sm font-medium">+ Novo Funcionário</button>
+          </div>
+          <div class="bg-white rounded-xl shadow overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-evg-blue text-white">
+                <tr>
+                  <th class="text-left px-4 py-3">Nome</th>
+                  <th class="text-right px-4 py-3">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-funcionarios" class="divide-y divide-gray-100"></tbody>
+            </table>
+            <div id="sem-funcionarios" class="hidden p-8 text-center text-gray-500">Nenhum funcionário cadastrado. O “Dono” já existe por padrão.</div>
+          </div>
+        </div>
+
+        <!-- CONFIG / PREÇOS -->
+        <div id="page-config" class="page hidden">
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">Preços & Configurações</h1>
+          <form id="form-config" class="bg-white rounded-xl shadow p-6 space-y-5 max-w-md">
+            <div>
+              <label class="block text-sm font-medium mb-1">Preço do galão 20L (R$)</label>
+              <input type="number" id="config-preco-galao" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm">
+              <p class="text-xs text-gray-500 mt-1">Valor padrão usado nas novas vendas</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Taxa de entrega (R$)</label>
+              <input type="number" id="config-taxa-entrega" step="0.01" min="0" class="w-full px-3 py-2 border rounded-lg text-sm">
+              <p class="text-xs text-gray-500 mt-1">Valor cobrado a mais quando for entrega</p>
+            </div>
+            <button type="submit" class="bg-evg-blue hover:bg-evg-dark text-white px-6 py-2.5 rounded-lg font-medium">Salvar configurações</button>
+          </form>
+          <div class="mt-8 bg-white rounded-xl shadow p-6 max-w-md">
+            <h2 class="font-semibold text-evg-blue mb-2">Sobre os dados</h2>
+            <p class="text-sm text-gray-600 mb-3">Tudo fica salvo neste computador (navegador). Para backup, você pode exportar os dados.</p>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="exportarDados()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">Exportar backup (JSON)</button>
+              <label class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm cursor-pointer">
+                Importar backup
+                <input type="file" accept=".json" class="hidden" onchange="importarDados(event)">
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAIS -->
+  <div id="modal-cliente" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="p-5 border-b flex justify-between items-center">
+        <h2 class="text-lg font-bold text-evg-blue" id="modal-cliente-titulo">Novo Cliente</h2>
+        <button onclick="fecharModalCliente()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+      </div>
+      <form id="form-cliente" class="p-5 space-y-4">
+        <input type="hidden" id="cliente-id">
+        <div>
+          <label class="block text-sm font-medium mb-1">Nome *</label>
+          <input type="text" id="cliente-nome" required class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">WhatsApp</label>
+          <input type="text" id="cliente-whatsapp" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="(11) 99999-9999">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Endereço completo</label>
+          <input type="text" id="cliente-endereco" class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">Bairro</label>
+            <input type="text" id="cliente-bairro" class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Cidade</label>
+            <input type="text" id="cliente-cidade" class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Observações</label>
+          <textarea id="cliente-obs" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="bg-evg-blue hover:bg-evg-dark text-white px-5 py-2 rounded-lg text-sm font-medium">Salvar</button>
+          <button type="button" onclick="fecharModalCliente()" class="px-5 py-2 border rounded-lg text-sm">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-entrada" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div class="p-5 border-b flex justify-between items-center">
+        <h2 class="text-lg font-bold text-evg-blue">Entrada de Galões</h2>
+        <button onclick="fecharModalEntrada()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+      </div>
+      <form id="form-entrada" class="p-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Tipo</label>
+          <select id="entrada-tipo" class="w-full px-3 py-2 border rounded-lg text-sm">
+            <option value="vazio">Retorno de vazios (clientes)</option>
+            <option value="novo_cheio">Novos galões cheios</option>
+            <option value="novo_vazio">Novos galões vazios</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Ano de fabricação *</label>
+          <input type="number" id="entrada-ano" min="2018" max="2035" required class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Quantidade *</label>
+          <input type="number" id="entrada-qtd" min="1" value="1" required class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Observação</label>
+          <input type="text" id="entrada-obs" class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium">Registrar</button>
+          <button type="button" onclick="fecharModalEntrada()" class="px-5 py-2 border rounded-lg text-sm">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-ajustar-estoque" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div class="p-5 border-b flex justify-between items-center">
+        <h2 class="text-lg font-bold text-evg-blue">Ajustar / Excluir estoque</h2>
+        <button onclick="fecharModalAjustar()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+      </div>
+      <form id="form-ajustar" class="p-5 space-y-4">
+        <input type="hidden" id="ajustar-ano">
+        <p class="text-sm">Ano: <strong id="ajustar-ano-label"></strong></p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">Cheios</label>
+            <input type="number" id="ajustar-cheios" min="0" class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Vazios</label>
+            <input type="number" id="ajustar-vazios" min="0" class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-2">
+          <button type="submit" class="bg-evg-blue hover:bg-evg-dark text-white px-4 py-2 rounded-lg text-sm font-medium">Salvar ajuste</button>
+          <button type="button" onclick="excluirAnoEstoque()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Excluir este ano</button>
+          <button type="button" onclick="fecharModalAjustar()" class="px-4 py-2 border rounded-lg text-sm">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-funcionario" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div class="p-5 border-b flex justify-between items-center">
+        <h2 class="text-lg font-bold text-evg-blue" id="modal-func-titulo">Novo Funcionário</h2>
+        <button onclick="fecharModalFuncionario()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+      </div>
+      <form id="form-funcionario" class="p-5 space-y-4">
+        <input type="hidden" id="func-id">
+        <div>
+          <label class="block text-sm font-medium mb-1">Nome *</label>
+          <input type="text" id="func-nome" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ex: Joãozinho">
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="bg-evg-blue hover:bg-evg-dark text-white px-5 py-2 rounded-lg text-sm font-medium">Salvar</button>
+          <button type="button" onclick="fecharModalFuncionario()" class="px-5 py-2 border rounded-lg text-sm">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-pagar" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+      <div class="p-5 border-b flex justify-between items-center">
+        <h2 class="text-lg font-bold text-evg-blue">Registrar pagamento</h2>
+        <button onclick="fecharModalPagar()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+      </div>
+      <form id="form-pagar" class="p-5 space-y-4">
+        <input type="hidden" id="pagar-venda-id">
+        <div>
+          <label class="block text-sm font-medium mb-1">Valor recebido (R$)</label>
+          <input type="number" id="pagar-valor" step="0.01" min="0" required class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium">Confirmar</button>
+          <button type="button" onclick="fecharModalPagar()" class="px-5 py-2 border rounded-lg text-sm">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: cliente devolveu vazios depois -->
+  <div id="modal-devolucao" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div class="p-5 border-b flex justify-between items-center">
+        <h2 class="text-lg font-bold text-evg-blue">Cliente devolveu vazio</h2>
+        <button onclick="fecharModalDevolucao()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+      </div>
+      <form id="form-devolucao" class="p-5 space-y-4">
+        <input type="hidden" id="dev-cliente-id">
+        <p class="text-sm text-gray-600">Cliente: <strong id="dev-cliente-nome">—</strong></p>
+        <p class="text-sm text-gray-500" id="dev-resumo-galoes"></p>
+        <div>
+          <label class="block text-sm font-medium mb-1">Ano do galão *</label>
+          <select id="dev-ano" class="w-full px-3 py-2 border rounded-lg text-sm" required></select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Quantidade devolvida *</label>
+          <input type="number" id="dev-qtd" min="1" value="1" required class="w-full px-3 py-2 border rounded-lg text-sm">
+          <p class="text-xs text-gray-500 mt-1">Máximo disponível com o cliente: <span id="dev-max">0</span></p>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium">Dar baixa</button>
+          <button type="button" onclick="fecharModalDevolucao()" class="px-5 py-2 border rounded-lg text-sm">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'agua_sistema_v2';
+
+    let dados = {
+      config: { precoGalao: 15, taxaEntrega: 4 },
+      clientes: [],
+      funcionarios: [],
+      produtos: [
+        { id: 'prod-galao', nome: 'Galão 20L', tipo: 'galao', preco: 15 },
+        { id: 'prod-bomba', nome: "Bomba d'água", tipo: 'outro', preco: 35 }
+      ],
+      estoque: {},
+      comClientes: {},
+      vendas: [],
+      movimentacoes: []
+    };
+
+    let cadastrandoNaVenda = false;
+
+    function carregarDados() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          dados = { ...dados, ...parsed };
+          if (!dados.config) dados.config = { precoGalao: 15, taxaEntrega: 4 };
+          if (!dados.funcionarios) dados.funcionarios = [];
+          if (!dados.estoque) dados.estoque = {};
+          if (!dados.comClientes) dados.comClientes = {};
+          if (!dados.movimentacoes) dados.movimentacoes = [];
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    function salvarDados() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+    }
+
+    function gerarId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function formatMoney(v) {
+      return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function hojeISO() { return new Date().toISOString().slice(0, 10); }
+
+    function anoVencimento(anoFab) { return Number(anoFab) + 3; }
+
+    function statusValidade(anoFab) {
+      const anoAtual = new Date().getFullYear();
+      const vence = anoVencimento(anoFab);
+      if (vence < anoAtual) return { texto: 'VENCIDO', classe: 'text-red-600 font-semibold' };
+      if (vence === anoAtual) return { texto: 'Vence este ano', classe: 'text-amber-600 font-semibold' };
+      if (vence === anoAtual + 1) return { texto: 'Vence ano que vem', classe: 'text-yellow-600' };
+      return { texto: 'Ok', classe: 'text-green-600' };
+    }
+
+    function nomeEntregador(id) {
+      if (!id || id === 'dono') return 'Dono';
+      const f = dados.funcionarios.find(x => x.id === id);
+      return f ? f.nome : '—';
+    }
+
+    // MENU
+    function abrirMenuMobile() {
+      document.getElementById('sidebar').classList.remove('-translate-x-full');
+      document.getElementById('sidebar-overlay').classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+    function fecharMenuMobile() {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+      document.getElementById('sidebar-overlay').classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    function showPage(page) {
+      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+      const el = document.getElementById('page-' + page);
+      if (el) el.classList.remove('hidden');
+      document.querySelectorAll('.sidebar-link').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.page === page);
+      });
+      document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.nav === page);
+      });
+      fecharMenuMobile();
+      try { window.scrollTo(0, 0); } catch (e) {}
+
+      if (page === 'dashboard') atualizarDashboard();
+      if (page === 'clientes') renderClientes();
+      if (page === 'estoque') renderEstoque();
+      if (page === 'a-receber') renderAReceber();
+      if (page === 'relatorios') setPeriodoRelatorio(periodoAtual || 'hoje');
+      if (page === 'funcionarios') renderFuncionarios();
+      if (page === 'config') {
+        document.getElementById('config-preco-galao').value = dados.config.precoGalao;
+        document.getElementById('config-taxa-entrega').value = dados.config.taxaEntrega;
+      }
+      if (page === 'nova-venda') prepararFormVenda();
+    }
+
+    // DASHBOARD
+    function atualizarDashboard() {
+      const agora = new Date();
+      const hojeStr = hojeISO();
+      const mesAtual = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
+
+      let hojeValor = 0, hojeGaloes = 0, mesValor = 0, mesGaloes = 0, aReceber = 0;
+      const entregasHoje = {};
+
+      dados.vendas.forEach(v => {
+        const data = (v.data || '').slice(0, 10);
+        const mes = data.slice(0, 7);
+        const total = Number(v.valorTotal) || 0;
+        const pago = Number(v.valorPago) || 0;
+        const galoes = Number(v.qtdGaloes) || 0;
+
+        if (data === hojeStr) {
+          hojeValor += total;
+          hojeGaloes += galoes;
+          if (v.tipoOp === 'entrega') {
+            const key = v.entregadorId || 'dono';
+            if (!entregasHoje[key]) entregasHoje[key] = { qtd: 0, taxa: 0 };
+            entregasHoje[key].qtd += galoes;
+            entregasHoje[key].taxa += (Number(v.taxaEntrega) || 0) * galoes;
+          }
+        }
+        if (mes === mesAtual) {
+          mesValor += total;
+          mesGaloes += galoes;
+        }
+        if (v.statusPagamento !== 'pago') aReceber += (total - pago);
+      });
+
+      document.getElementById('dash-hoje-valor').textContent = formatMoney(hojeValor);
+      document.getElementById('dash-hoje-galoes').textContent = hojeGaloes + ' galões';
+      document.getElementById('dash-mes-valor').textContent = formatMoney(mesValor);
+      document.getElementById('dash-mes-galoes').textContent = mesGaloes + ' galões';
+      document.getElementById('dash-a-receber').textContent = formatMoney(aReceber);
+      document.getElementById('dash-clientes').textContent = dados.clientes.length;
+
+      // Entregas hoje
+      const contEnt = document.getElementById('dash-entregas-hoje');
+      const keys = Object.keys(entregasHoje);
+      if (keys.length === 0) {
+        contEnt.innerHTML = '<p class="text-gray-400">Nenhuma entrega registrada hoje.</p>';
+      } else {
+        contEnt.innerHTML = keys.map(k => {
+          const e = entregasHoje[k];
+          return `<div class="flex justify-between py-1 border-b last:border-0">
+            <span class="font-medium">${nomeEntregador(k)}</span>
+            <span>${e.qtd} galão(ões) → receber ${formatMoney(e.taxa)}</span>
+          </div>`;
+        }).join('');
+      }
+
+      // Estoque + validade
+      const anos = [...new Set([
+        ...Object.keys(dados.estoque),
+        ...Object.values(dados.comClientes).flatMap(c => Object.keys(c))
+      ])].sort().reverse();
+      const contEst = document.getElementById('dash-estoque-anos');
+      if (anos.length === 0) {
+        contEst.innerHTML = '<p class="text-gray-400">Nenhum galão ainda.</p>';
+      } else {
+        contEst.innerHTML = anos.map(ano => {
+          const e = dados.estoque[ano] || { cheios: 0, vazios: 0 };
+          const comCli = Object.values(dados.comClientes).reduce((s, c) => s + (c[ano] || 0), 0);
+          const st = statusValidade(ano);
+          return `<div class="flex justify-between items-center py-1 border-b last:border-0">
+            <span>Ano ${ano}: ${e.cheios||0} cheios, ${e.vazios||0} vazios, ${comCli} com clientes</span>
+            <span class="${st.classe} text-xs">${st.texto}</span>
+          </div>`;
+        }).join('');
+      }
+
+      // Últimas vendas
+      const ultimas = [...dados.vendas].sort((a,b) => new Date(b.data) - new Date(a.data)).slice(0, 8);
+      const contUlt = document.getElementById('dash-ultimas-vendas');
+      contUlt.innerHTML = ultimas.length ? ultimas.map(v => {
+        const cli = dados.clientes.find(c => c.id === v.clienteId);
+        return `<div class="flex justify-between items-center py-2 border-b last:border-0 gap-2">
+          <div class="min-w-0">
+            <span class="font-medium">${cli ? cli.nome : '—'}</span>
+            <span class="text-gray-400 text-xs ml-2">${formatDate(v.data)}</span>
+            ${v.tipoOp === 'entrega' ? `<span class="text-xs text-blue-600 ml-1">• Entrega (${nomeEntregador(v.entregadorId)})</span>` : '<span class="text-xs text-gray-400 ml-1">• Retirada</span>'}
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-medium">${formatMoney(v.valorTotal)}</div>
+            <div class="text-xs ${v.statusPagamento === 'pago' ? 'text-green-600' : 'text-red-600'}">${v.statusPagamento === 'pago' ? 'Pago' : 'A pagar'}</div>
+            <button type="button" onclick="imprimirNota('${v.id}')" class="text-xs text-evg-blue hover:underline mt-0.5">Imprimir nota</button>
+          </div>
+        </div>`;
+      }).join('') : '<p class="text-gray-400">Nenhuma venda ainda.</p>';
+    }
+
+    // CLIENTES
+    function renderClientes() {
+      const busca = (document.getElementById('busca-cliente')?.value || '').toLowerCase();
+      let lista = [...dados.clientes];
+      if (busca) {
+        lista = lista.filter(c =>
+          (c.nome||'').toLowerCase().includes(busca) ||
+          (c.whatsapp||'').includes(busca) ||
+          (c.endereco||'').toLowerCase().includes(busca) ||
+          (c.bairro||'').toLowerCase().includes(busca)
+        );
+      }
+      lista.sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+      const tbody = document.getElementById('tabela-clientes');
+      const sem = document.getElementById('sem-clientes');
+      if (lista.length === 0) {
+        tbody.innerHTML = '';
+        sem.classList.remove('hidden');
+        return;
+      }
+      sem.classList.add('hidden');
+      tbody.innerHTML = lista.map(c => {
+        const comEle = dados.comClientes[c.id] || {};
+        const totalG = Object.values(comEle).reduce((s,n) => s+n, 0);
+        const det = Object.entries(comEle).filter(([,n]) => n>0).map(([a,n]) => n+'×'+a).join(', ') || '—';
+        return `<tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">${c.nome||'—'}</td>
+          <td class="px-4 py-3">${c.whatsapp||'—'}</td>
+          <td class="px-4 py-3">${[c.endereco,c.bairro,c.cidade].filter(Boolean).join(' – ')||'—'}</td>
+          <td class="px-4 py-3">${totalG > 0 ? totalG + ' (' + det + ')' : '—'}</td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            ${totalG > 0 ? `<button onclick="abrirModalDevolucao('${c.id}')" class="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded mr-2">Devolveu vazio</button>` : ''}
+            <button onclick="editarCliente('${c.id}')" class="text-evg-blue hover:underline text-sm">Editar</button>
+            <button onclick="excluirCliente('${c.id}')" class="text-red-600 hover:underline text-sm ml-2">Excluir</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Cards mobile
+      const cards = document.getElementById('clientes-cards');
+      if (cards) {
+        if (lista.length === 0) {
+          cards.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-gray-500">Nenhum cliente cadastrado.</div>';
+        } else {
+          cards.innerHTML = lista.map(c => {
+            const comEle = dados.comClientes[c.id] || {};
+            const totalG = Object.values(comEle).reduce((s,n) => s+n, 0);
+            const det = Object.entries(comEle).filter(([,n]) => n>0).map(([a,n]) => n+'×'+a).join(', ');
+            const end = [c.endereco, c.bairro, c.cidade].filter(Boolean).join(' – ');
+            return `<div class="bg-white rounded-xl shadow p-4">
+              <div class="font-semibold text-evg-blue text-base">${c.nome||'—'}</div>
+              <div class="text-sm text-gray-600 mt-1">${c.whatsapp||''}</div>
+              ${end ? `<div class="text-xs text-gray-500 mt-1">${end}</div>` : ''}
+              ${totalG > 0 ? `<div class="text-sm text-amber-700 mt-2">Galões com ele: ${totalG} (${det})</div>` : ''}
+              <div class="flex flex-wrap gap-2 mt-3">
+                ${totalG > 0 ? `<button onclick="abrirModalDevolucao('${c.id}')" class="bg-green-600 text-white text-sm px-3 py-2 rounded-lg">Devolveu vazio</button>` : ''}
+                <button onclick="editarCliente('${c.id}')" class="bg-evg-blue text-white text-sm px-3 py-2 rounded-lg">Editar</button>
+                <button onclick="excluirCliente('${c.id}')" class="border border-red-300 text-red-600 text-sm px-3 py-2 rounded-lg">Excluir</button>
+              </div>
+            </div>`;
+          }).join('');
+        }
+      }
+    }
+
+    function abrirModalCliente(id=null) {
+      document.getElementById('modal-cliente').classList.remove('hidden');
+      document.getElementById('form-cliente').reset();
+      document.getElementById('cliente-id').value = '';
+      document.getElementById('modal-cliente-titulo').textContent = 'Novo Cliente';
+      if (id) {
+        const c = dados.clientes.find(x => x.id === id);
+        if (c) {
+          document.getElementById('cliente-id').value = c.id;
+          document.getElementById('cliente-nome').value = c.nome||'';
+          document.getElementById('cliente-whatsapp').value = c.whatsapp||'';
+          document.getElementById('cliente-endereco').value = c.endereco||'';
+          document.getElementById('cliente-bairro').value = c.bairro||'';
+          document.getElementById('cliente-cidade').value = c.cidade||'';
+          document.getElementById('cliente-obs').value = c.obs||'';
+          document.getElementById('modal-cliente-titulo').textContent = 'Editar Cliente';
+        }
+      }
+    }
+    function fecharModalCliente() {
+      document.getElementById('modal-cliente').classList.add('hidden');
+      cadastrandoNaVenda = false;
+    }
+    function editarCliente(id) { abrirModalCliente(id); }
+
+    document.getElementById('form-cliente').addEventListener('submit', e => {
+      e.preventDefault();
+      const id = document.getElementById('cliente-id').value;
+      const obj = {
+        id: id || gerarId(),
+        nome: document.getElementById('cliente-nome').value.trim(),
+        whatsapp: document.getElementById('cliente-whatsapp').value.trim(),
+        endereco: document.getElementById('cliente-endereco').value.trim(),
+        bairro: document.getElementById('cliente-bairro').value.trim(),
+        cidade: document.getElementById('cliente-cidade').value.trim(),
+        obs: document.getElementById('cliente-obs').value.trim(),
+        criadoEm: id ? (dados.clientes.find(c=>c.id===id)?.criadoEm || new Date().toISOString()) : new Date().toISOString()
+      };
+      if (id) {
+        const idx = dados.clientes.findIndex(c => c.id === id);
+        if (idx >= 0) dados.clientes[idx] = obj;
+      } else {
+        dados.clientes.push(obj);
+      }
+      salvarDados();
+      fecharModalCliente();
+
+      // Se cadastrou a partir da tela de venda, já seleciona o cliente
+      if (cadastrandoNaVenda && !id) {
+        cadastrandoNaVenda = false;
+        selecionarClienteVenda(obj.id);
+      }
+
+      if (document.getElementById('page-clientes') && !document.getElementById('page-clientes').classList.contains('hidden')) {
+        renderClientes();
+      }
+      atualizarDashboard();
+    });
+
+    function excluirCliente(id) {
+      if (!confirm('Excluir este cliente?')) return;
+      dados.clientes = dados.clientes.filter(c => c.id !== id);
+      delete dados.comClientes[id];
+      salvarDados();
+      renderClientes();
+      atualizarDashboard();
+    }
+
+    // ---- Devolução de vazios (cliente trouxe depois) ----
+    function abrirModalDevolucao(clienteId) {
+      const c = dados.clientes.find(x => x.id === clienteId);
+      if (!c) return;
+      const comEle = dados.comClientes[clienteId] || {};
+      const anos = Object.entries(comEle).filter(([, n]) => n > 0).map(([ano]) => ano).sort().reverse();
+      if (anos.length === 0) {
+        alert('Este cliente não tem galões pendentes.');
+        return;
+      }
+      document.getElementById('modal-devolucao').classList.remove('hidden');
+      document.getElementById('dev-cliente-id').value = clienteId;
+      document.getElementById('dev-cliente-nome').textContent = c.nome;
+      document.getElementById('dev-resumo-galoes').textContent =
+        'Com o cliente: ' + anos.map(a => (comEle[a] || 0) + '× ano ' + a).join(', ');
+      const sel = document.getElementById('dev-ano');
+      sel.innerHTML = anos.map(a =>
+        `<option value="${a}">Ano ${a} (${comEle[a]} com ele)</option>`
+      ).join('');
+      const primeiro = anos[0];
+      document.getElementById('dev-qtd').value = 1;
+      document.getElementById('dev-qtd').max = comEle[primeiro] || 1;
+      document.getElementById('dev-max').textContent = comEle[primeiro] || 0;
+      sel.onchange = function() {
+        const a = sel.value;
+        const max = (dados.comClientes[clienteId] || {})[a] || 0;
+        document.getElementById('dev-max').textContent = max;
+        document.getElementById('dev-qtd').max = max;
+        if (parseInt(document.getElementById('dev-qtd').value, 10) > max) {
+          document.getElementById('dev-qtd').value = max;
+        }
+      };
+    }
+
+    function fecharModalDevolucao() {
+      document.getElementById('modal-devolucao').classList.add('hidden');
+    }
+
+    document.getElementById('form-devolucao').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const clienteId = document.getElementById('dev-cliente-id').value;
+      const ano = document.getElementById('dev-ano').value;
+      let qtd = parseInt(document.getElementById('dev-qtd').value, 10) || 0;
+      const comEle = dados.comClientes[clienteId] || {};
+      const max = comEle[ano] || 0;
+      if (qtd < 1) return alert('Informe a quantidade');
+      if (qtd > max) {
+        if (!confirm('Quantidade maior do que o registrado com o cliente (' + max + '). Continuar mesmo assim?')) return;
+        qtd = max; // limita
+      }
+      if (!dados.comClientes[clienteId]) dados.comClientes[clienteId] = {};
+      dados.comClientes[clienteId][ano] = Math.max(0, (dados.comClientes[clienteId][ano] || 0) - qtd);
+      if (!dados.estoque[ano]) dados.estoque[ano] = { cheios: 0, vazios: 0 };
+      dados.estoque[ano].vazios = (dados.estoque[ano].vazios || 0) + qtd;
+      const nome = (dados.clientes.find(c => c.id === clienteId) || {}).nome || 'cliente';
+      dados.movimentacoes.push({
+        id: gerarId(),
+        data: new Date().toISOString(),
+        tipo: 'devolucao_cliente',
+        ano,
+        qtd,
+        descricao: `Devolução ${qtd} vazio(s) ano ${ano} – ${nome}`
+      });
+      salvarDados();
+      fecharModalDevolucao();
+      renderClientes();
+      if (typeof renderEstoque === 'function') renderEstoque();
+      atualizarDashboard();
+      alert('Baixa registrada! ' + qtd + ' vazio(s) entraram no estoque.');
+    });
+
+    // ESTOQUE
+    function garantirAnoEstoque(ano) {
+      if (!dados.estoque[ano]) dados.estoque[ano] = { cheios: 0, vazios: 0 };
+    }
+
+    function renderEstoque() {
+      let totalCheios = 0, totalVazios = 0, totalComCli = 0;
+      const anosAll = [...new Set([
+        ...Object.keys(dados.estoque),
+        ...Object.values(dados.comClientes).flatMap(c => Object.keys(c))
+      ])].sort().reverse();
+
+      const tbody = document.getElementById('tabela-estoque-anos');
+      tbody.innerHTML = anosAll.map(ano => {
+        const e = dados.estoque[ano] || { cheios: 0, vazios: 0 };
+        const comCli = Object.values(dados.comClientes).reduce((s,c) => s + (c[ano]||0), 0);
+        totalCheios += e.cheios||0;
+        totalVazios += e.vazios||0;
+        totalComCli += comCli;
+        const st = statusValidade(ano);
+        const total = (e.cheios||0) + (e.vazios||0) + comCli;
+        return `<tr class="border-b">
+          <td class="px-3 py-2 font-medium">${ano}</td>
+          <td class="px-3 py-2 text-center">${e.cheios||0}</td>
+          <td class="px-3 py-2 text-center">${e.vazios||0}</td>
+          <td class="px-3 py-2 text-center">${comCli}</td>
+          <td class="px-3 py-2 text-center font-medium">${total}</td>
+          <td class="px-3 py-2">${anoVencimento(ano)}</td>
+          <td class="px-3 py-2 ${st.classe}">${st.texto}</td>
+          <td class="px-3 py-2 text-right">
+            <button onclick="abrirModalAjustar('${ano}')" class="text-evg-blue hover:underline text-sm">Ajustar / Excluir</button>
+          </td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="8" class="px-3 py-4 text-center text-gray-400">Nenhum galão. Faça uma entrada.</td></tr>';
+
+      document.getElementById('estoque-cheios').textContent = totalCheios;
+      document.getElementById('estoque-vazios').textContent = totalVazios;
+      document.getElementById('estoque-com-clientes').textContent = totalComCli;
+
+      // Lista de clientes com galões (para dar baixa)
+      const contCli = document.getElementById('estoque-com-clientes-lista');
+      if (contCli) {
+        const lista = [];
+        Object.keys(dados.comClientes || {}).forEach(cid => {
+          const com = dados.comClientes[cid] || {};
+          const total = Object.values(com).reduce((s, n) => s + (n || 0), 0);
+          if (total <= 0) return;
+          const cli = dados.clientes.find(c => c.id === cid);
+          const det = Object.entries(com).filter(([, n]) => n > 0).map(([a, n]) => n + '×' + a).join(', ');
+          lista.push({ cid, nome: cli ? cli.nome : 'Cliente removido', total, det });
+        });
+        lista.sort((a, b) => a.nome.localeCompare(b.nome));
+        contCli.innerHTML = lista.length
+          ? lista.map(item => `
+              <div class="flex flex-wrap items-center justify-between gap-2 py-2 border-b last:border-0">
+                <div>
+                  <span class="font-medium">${item.nome}</span>
+                  <span class="text-gray-500 text-xs ml-2">${item.total} galão(ões) — ${item.det}</span>
+                </div>
+                <button type="button" onclick="abrirModalDevolucao('${item.cid}')"
+                        class="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium">
+                  Devolveu vazio
+                </button>
+              </div>
+            `).join('')
+          : '<p class="text-gray-400">Nenhum galão com clientes no momento.</p>';
+      }
+
+      const movs = [...dados.movimentacoes].sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,20);
+      document.getElementById('estoque-movimentacoes').innerHTML = movs.length
+        ? movs.map(m => `<div class="flex justify-between py-1.5 border-b last:border-0"><span>${m.descricao}</span><span class="text-gray-400 text-xs">${formatDate(m.data)}</span></div>`).join('')
+        : '<p class="text-gray-400">Nenhuma movimentação.</p>';
+    }
+
+    function abrirModalEntrada() {
+      document.getElementById('modal-entrada').classList.remove('hidden');
+      document.getElementById('form-entrada').reset();
+      document.getElementById('entrada-ano').value = new Date().getFullYear();
+    }
+    function fecharModalEntrada() { document.getElementById('modal-entrada').classList.add('hidden'); }
+
+    document.getElementById('form-entrada').addEventListener('submit', e => {
+      e.preventDefault();
+      const tipo = document.getElementById('entrada-tipo').value;
+      const ano = String(document.getElementById('entrada-ano').value);
+      const qtd = parseInt(document.getElementById('entrada-qtd').value, 10) || 0;
+      const obs = document.getElementById('entrada-obs').value.trim();
+      if (qtd < 1) return alert('Quantidade inválida');
+      garantirAnoEstoque(ano);
+      let desc = '';
+      if (tipo === 'vazio') {
+        dados.estoque[ano].vazios = (dados.estoque[ano].vazios||0) + qtd;
+        desc = `+${qtd} vazios (ano ${ano}) – retorno`;
+      } else if (tipo === 'novo_cheio') {
+        dados.estoque[ano].cheios = (dados.estoque[ano].cheios||0) + qtd;
+        desc = `+${qtd} cheios (ano ${ano})`;
+      } else {
+        dados.estoque[ano].vazios = (dados.estoque[ano].vazios||0) + qtd;
+        desc = `+${qtd} vazios novos (ano ${ano})`;
+      }
+      if (obs) desc += ' • ' + obs;
+      dados.movimentacoes.push({ id: gerarId(), data: new Date().toISOString(), tipo, ano, qtd, descricao: desc });
+      salvarDados();
+      fecharModalEntrada();
+      renderEstoque();
+      atualizarDashboard();
+      alert('Entrada registrada!');
+    });
+
+    function abrirModalAjustar(ano) {
+      document.getElementById('modal-ajustar-estoque').classList.remove('hidden');
+      document.getElementById('ajustar-ano').value = ano;
+      document.getElementById('ajustar-ano-label').textContent = ano;
+      const e = dados.estoque[ano] || { cheios: 0, vazios: 0 };
+      document.getElementById('ajustar-cheios').value = e.cheios || 0;
+      document.getElementById('ajustar-vazios').value = e.vazios || 0;
+    }
+    function fecharModalAjustar() { document.getElementById('modal-ajustar-estoque').classList.add('hidden'); }
+
+    document.getElementById('form-ajustar').addEventListener('submit', e => {
+      e.preventDefault();
+      const ano = document.getElementById('ajustar-ano').value;
+      const cheios = parseInt(document.getElementById('ajustar-cheios').value, 10) || 0;
+      const vazios = parseInt(document.getElementById('ajustar-vazios').value, 10) || 0;
+      garantirAnoEstoque(ano);
+      dados.estoque[ano].cheios = cheios;
+      dados.estoque[ano].vazios = vazios;
+      dados.movimentacoes.push({
+        id: gerarId(), data: new Date().toISOString(), tipo: 'ajuste', ano,
+        descricao: `Ajuste ano ${ano}: ${cheios} cheios, ${vazios} vazios`
+      });
+      salvarDados();
+      fecharModalAjustar();
+      renderEstoque();
+      atualizarDashboard();
+      alert('Estoque ajustado!');
+    });
+
+    function excluirAnoEstoque() {
+      const ano = document.getElementById('ajustar-ano').value;
+      if (!confirm(`Excluir completamente o ano ${ano} do estoque?\n(Isso não remove os galões que estão com clientes.)`)) return;
+      delete dados.estoque[ano];
+      dados.movimentacoes.push({
+        id: gerarId(), data: new Date().toISOString(), tipo: 'exclusao', ano,
+        descricao: `Excluído estoque do ano ${ano}`
+      });
+      salvarDados();
+      fecharModalAjustar();
+      renderEstoque();
+      atualizarDashboard();
+    }
+
+    // NOVA VENDA
+    function prepararFormVenda() {
+      document.getElementById('venda-preco-galao').value = dados.config.precoGalao || 15;
+      document.getElementById('venda-taxa-entrega').value = dados.config.taxaEntrega || 4;
+      preencherAnosVenda();
+      preencherEntregadores();
+      preencherOutrosProdutos();
+      // reseta opção de vazios
+      const radioNenhum = document.querySelector('input[name="opcao-vazio"][value="nenhum"]');
+      if (radioNenhum) radioNenhum.checked = true;
+      if (typeof onOpcaoVazioChange === 'function') onOpcaoVazioChange();
+      calcularTotalVenda();
+      toggleEntrega();
+    }
+
+    function preencherAnosVenda() {
+      const sel = document.getElementById('venda-ano-galao');
+      const anos = Object.keys(dados.estoque).filter(a => (dados.estoque[a].cheios||0) > 0).sort((a,b)=>b-a);
+      const anoAtual = new Date().getFullYear();
+      for (let y = anoAtual + 1; y >= anoAtual - 5; y--) {
+        if (!anos.includes(String(y))) anos.push(String(y));
+      }
+      anos.sort((a,b)=>b-a);
+      sel.innerHTML = anos.map(a => {
+        const qtd = (dados.estoque[a] && dados.estoque[a].cheios) || 0;
+        return `<option value="${a}">${a} (${qtd} disponíveis)</option>`;
+      }).join('') || '<option value="">Cadastre estoque primeiro</option>';
+      atualizarInfoEstoqueVenda();
+    }
+
+    function atualizarInfoEstoqueVenda() {
+      const ano = document.getElementById('venda-ano-galao').value;
+      const info = document.getElementById('venda-estoque-info');
+      if (!ano) { info.textContent = 'Estoque disponível: —'; return; }
+      const e = dados.estoque[ano] || { cheios: 0 };
+      info.textContent = `Estoque disponível deste ano: ${e.cheios||0} cheios`;
+    }
+
+    function preencherEntregadores() {
+      const sel = document.getElementById('venda-entregador');
+      sel.innerHTML = '<option value="dono">Dono</option>' +
+        dados.funcionarios.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+    }
+
+    function preencherOutrosProdutos() {
+      const sel = document.getElementById('venda-outro-produto');
+      const outros = dados.produtos.filter(p => p.tipo === 'outro');
+      sel.innerHTML = '<option value="">Nenhum</option>' + outros.map(p =>
+        `<option value="${p.id}" data-preco="${p.preco}">${p.nome} – ${formatMoney(p.preco)}</option>`
+      ).join('');
+    }
+
+    function toggleEntrega() {
+      const isEntrega = document.querySelector('input[name="tipo-op"]:checked')?.value === 'entrega';
+      document.getElementById('bloco-entrega').classList.toggle('hidden', !isEntrega);
+      calcularTotalVenda();
+    }
+
+    function onOpcaoVazioChange() {
+      const op = document.querySelector('input[name="opcao-vazio"]:checked')?.value || 'nenhum';
+      const bloco = document.getElementById('bloco-qtd-vazio');
+      const hint = document.getElementById('hint-vazio');
+      const qtdInput = document.getElementById('venda-qtd-vazio');
+      const qtdVenda = parseInt(document.getElementById('venda-qtd-galao').value, 10) || 1;
+
+      if (op === 'nenhum') {
+        bloco.classList.add('hidden');
+        document.getElementById('venda-vazios-devolvidos').value = '0';
+        document.getElementById('venda-vazios-pendentes').value = '0';
+      } else {
+        bloco.classList.remove('hidden');
+        if (!qtdInput.value || parseInt(qtdInput.value, 10) < 1) qtdInput.value = qtdVenda;
+        if (op === 'devolveu') {
+          hint.textContent = 'Esses vazios entram no estoque e saem da conta do cliente.';
+          document.getElementById('venda-vazios-devolvidos').value = qtdInput.value;
+          document.getElementById('venda-vazios-pendentes').value = '0';
+        } else {
+          hint.textContent = 'Cliente ficou com o vazio. Fica registrado como pendente (com o cliente).';
+          document.getElementById('venda-vazios-devolvidos').value = '0';
+          document.getElementById('venda-vazios-pendentes').value = qtdInput.value;
+        }
+      }
+    }
+
+    // Atualiza os hidden quando muda a quantidade de vazios
+    document.addEventListener('input', function(e) {
+      if (e.target && e.target.id === 'venda-qtd-vazio') {
+        const op = document.querySelector('input[name="opcao-vazio"]:checked')?.value || 'nenhum';
+        const q = e.target.value || '0';
+        if (op === 'devolveu') {
+          document.getElementById('venda-vazios-devolvidos').value = q;
+          document.getElementById('venda-vazios-pendentes').value = '0';
+        } else if (op === 'pendente') {
+          document.getElementById('venda-vazios-devolvidos').value = '0';
+          document.getElementById('venda-vazios-pendentes').value = q;
+        }
+      }
+    });
+
+    function getTotalVenda() {
+      const qtd = parseInt(document.getElementById('venda-qtd-galao').value, 10) || 0;
+      const preco = parseFloat(document.getElementById('venda-preco-galao').value) || 0;
+      let total = qtd * preco;
+      const isEntrega = document.querySelector('input[name="tipo-op"]:checked')?.value === 'entrega';
+      if (isEntrega) {
+        const taxa = parseFloat(document.getElementById('venda-taxa-entrega').value) || 0;
+        total += taxa * qtd;
+      }
+      const outroId = document.getElementById('venda-outro-produto').value;
+      const outroQtd = parseInt(document.getElementById('venda-outro-qtd').value, 10) || 0;
+      const outroPreco = parseFloat(document.getElementById('venda-outro-preco').value) || 0;
+      if (outroId && outroQtd > 0) {
+        const p = dados.produtos.find(x => x.id === outroId);
+        total += outroQtd * (outroPreco || (p ? p.preco : 0));
+      }
+      return total;
+    }
+
+    function calcularTotalVenda() {
+      const total = getTotalVenda();
+      document.getElementById('venda-total-display').textContent = formatMoney(total);
+      const status = document.getElementById('venda-status-pag').value;
+      if (status === 'pago') {
+        document.getElementById('venda-valor-pago').value = total.toFixed(2);
+      }
+      atualizarTroco();
+      return total;
+    }
+
+    function onStatusPagChange() {
+      const status = document.getElementById('venda-status-pag').value;
+      const total = getTotalVenda();
+      if (status === 'pago') {
+        document.getElementById('venda-valor-pago').value = total.toFixed(2);
+      } else if (status === 'a_pagar') {
+        document.getElementById('venda-valor-pago').value = '0';
+      }
+      // parcial: deixa o usuário digitar
+      atualizarTroco();
+    }
+
+    function atualizarTroco() {
+      const total = getTotalVenda();
+      const pago = parseFloat(document.getElementById('venda-valor-pago').value) || 0;
+      const info = document.getElementById('venda-troco-info');
+      if (!info) return;
+      if (pago > total && total > 0) {
+        info.textContent = 'Troco: ' + formatMoney(pago - total);
+        info.className = 'text-xs text-green-600 mt-1 font-medium';
+      } else if (pago > 0 && pago < total) {
+        info.textContent = 'Falta: ' + formatMoney(total - pago);
+        info.className = 'text-xs text-amber-600 mt-1';
+      } else {
+        info.textContent = '';
+      }
+    }
+
+    function buscarClienteVenda() {
+      const termo = (document.getElementById('venda-busca-cliente').value || '').toLowerCase().trim();
+      const box = document.getElementById('venda-lista-clientes');
+      if (!box) return;
+
+      // Sempre mostra a lista de clientes (filtrada se tiver texto)
+      let lista = (dados.clientes || []).filter(c => c && c.nome);
+      if (termo) {
+        lista = lista.filter(c =>
+          (c.nome || '').toLowerCase().includes(termo) ||
+          (c.whatsapp || '').includes(termo) ||
+          (c.endereco || '').toLowerCase().includes(termo)
+        );
+      }
+      lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+      if (lista.length === 0) {
+        box.innerHTML = `
+          <p class="px-3 py-2 text-sm text-gray-500">Nenhum cliente encontrado${termo ? ' com “' + termo + '”' : ''}.</p>
+          <button type="button" onclick="abrirModalClienteNaVenda()" class="w-full text-left px-3 py-2 text-sm text-green-700 hover:bg-green-50 font-medium border-t">
+            + Cadastrar novo cliente${termo ? ' “' + termo + '”' : ''}
+          </button>
+        `;
+        box.classList.remove('hidden');
+        return;
+      }
+
+      box.innerHTML = lista.slice(0, 20).map(c => {
+        const end = [c.endereco, c.bairro].filter(Boolean).join(', ');
+        return `<button type="button" onclick="selecionarClienteVenda('${c.id}')"
+                  class="w-full text-left px-3 py-2.5 text-sm hover:bg-evg-light border-b last:border-0">
+            <div class="font-medium">${c.nome}</div>
+            <div class="text-xs text-gray-500">${c.whatsapp || ''}${end ? ' • ' + end : ''}</div>
+          </button>`;
+      }).join('') + `
+        <button type="button" onclick="abrirModalClienteNaVenda()" class="w-full text-left px-3 py-2 text-sm text-green-700 hover:bg-green-50 font-medium border-t">
+          + Cadastrar novo cliente
+        </button>
+      `;
+      box.classList.remove('hidden');
+    }
+
+    function selecionarClienteVenda(id) {
+      const c = dados.clientes.find(x => x.id === id);
+      if (!c) return;
+      document.getElementById('venda-cliente-id').value = id;
+      document.getElementById('venda-busca-cliente').value = c.nome;
+      const end = [c.endereco, c.bairro, c.cidade].filter(Boolean).join(' – ');
+      document.getElementById('venda-cliente-selecionado').innerHTML =
+        `<strong>${c.nome}</strong>${c.whatsapp ? ' • ' + c.whatsapp : ''}${end ? '<br><span class="text-gray-500 text-xs">' + end + '</span>' : ''}`;
+      document.getElementById('venda-cliente-selecionado').classList.remove('hidden');
+      document.getElementById('venda-lista-clientes').classList.add('hidden');
+    }
+
+    function abrirModalClienteNaVenda() {
+      cadastrandoNaVenda = true;
+      const termo = document.getElementById('venda-busca-cliente').value.trim();
+      abrirModalCliente();
+      if (termo) {
+        // pré-preenche o nome com o que digitou
+        setTimeout(() => {
+          const nomeInput = document.getElementById('cliente-nome');
+          if (nomeInput && !nomeInput.value) nomeInput.value = termo;
+        }, 50);
+      }
+    }
+
+    document.addEventListener('click', e => {
+      const box = document.getElementById('venda-lista-clientes');
+      const input = document.getElementById('venda-busca-cliente');
+      if (box && input && !box.contains(e.target) && e.target !== input && !e.target.closest('button')) {
+        // não fecha se clicou no botão + Novo
+        if (!e.target.closest('[onclick*="abrirModalCliente"]')) {
+          box.classList.add('hidden');
+        }
+      }
+    });
+
+    function limparFormVenda() {
+      document.getElementById('form-venda').reset();
+      document.getElementById('venda-cliente-id').value = '';
+      document.getElementById('venda-cliente-selecionado').classList.add('hidden');
+      prepararFormVenda();
+    }
+
+    document.getElementById('form-venda').addEventListener('submit', e => {
+      e.preventDefault();
+      const clienteId = document.getElementById('venda-cliente-id').value;
+      if (!clienteId) return alert('Selecione um cliente');
+
+      const ano = document.getElementById('venda-ano-galao').value;
+      const qtd = parseInt(document.getElementById('venda-qtd-galao').value, 10) || 0;
+      const precoUn = parseFloat(document.getElementById('venda-preco-galao').value) || 0;
+      const tipoOp = document.querySelector('input[name="tipo-op"]:checked')?.value || 'retirada';
+      const taxaEntrega = tipoOp === 'entrega' ? (parseFloat(document.getElementById('venda-taxa-entrega').value) || 0) : 0;
+      const entregadorId = tipoOp === 'entrega' ? document.getElementById('venda-entregador').value : null;
+      const vaziosDev = parseInt(document.getElementById('venda-vazios-devolvidos').value, 10) || 0;
+      const vaziosPend = parseInt(document.getElementById('venda-vazios-pendentes').value, 10) || 0;
+      const statusPag = document.getElementById('venda-status-pag').value;
+      let valorPago = parseFloat(document.getElementById('venda-valor-pago').value) || 0;
+      const obs = document.getElementById('venda-obs').value.trim();
+
+      if (qtd < 1) return alert('Informe a quantidade');
+      if (!ano) return alert('Selecione o ano do galão');
+      if (tipoOp === 'entrega' && !entregadorId) return alert('Selecione quem entregou');
+
+      garantirAnoEstoque(ano);
+      const disponiveis = dados.estoque[ano].cheios || 0;
+      if (qtd > disponiveis) {
+        if (!confirm(`Só há ${disponiveis} galões cheios do ano ${ano}. Continuar mesmo assim?`)) return;
+      }
+
+      dados.estoque[ano].cheios = Math.max(0, (dados.estoque[ano].cheios||0) - qtd);
+      if (!dados.comClientes[clienteId]) dados.comClientes[clienteId] = {};
+      dados.comClientes[clienteId][ano] = (dados.comClientes[clienteId][ano]||0) + qtd;
+
+      if (vaziosDev > 0) {
+        dados.estoque[ano].vazios = (dados.estoque[ano].vazios||0) + vaziosDev;
+        const atual = dados.comClientes[clienteId][ano] || 0;
+        dados.comClientes[clienteId][ano] = Math.max(0, atual - vaziosDev);
+      }
+
+      let valorOutros = 0;
+      const outroId = document.getElementById('venda-outro-produto').value;
+      const outroQtd = parseInt(document.getElementById('venda-outro-qtd').value, 10) || 0;
+      const outroPreco = parseFloat(document.getElementById('venda-outro-preco').value) || 0;
+      if (outroId && outroQtd > 0) {
+        const p = dados.produtos.find(x => x.id === outroId);
+        valorOutros = outroQtd * (outroPreco || (p ? p.preco : 0));
+      }
+
+      const valorGaloes = qtd * precoUn;
+      const valorTaxa = taxaEntrega * qtd;
+      const valorTotal = valorGaloes + valorTaxa + valorOutros;
+
+      if (statusPag === 'pago') valorPago = valorTotal;
+      if (statusPag === 'a_pagar') valorPago = 0;
+
+      const venda = {
+        id: gerarId(),
+        data: new Date().toISOString(),
+        clienteId,
+        anoGalao: ano,
+        qtdGaloes: qtd,
+        precoGalao: precoUn,
+        tipoOp,
+        taxaEntrega,
+        entregadorId,
+        vaziosDevolvidos: vaziosDev,
+        vaziosPendentes: vaziosPend,
+        outroProdutoId: outroId || null,
+        outroQtd,
+        outroPreco,
+        valorTotal,
+        valorPago,
+        statusPagamento: statusPag === 'pago' ? 'pago' : (valorPago > 0 ? 'parcial' : 'a_pagar'),
+        obs
+      };
+
+      dados.vendas.push(venda);
+      dados.movimentacoes.push({
+        id: gerarId(), data: new Date().toISOString(), tipo: 'saida', ano, qtd,
+        descricao: `Venda ${qtd} galão(ões) ano ${ano} → ${dados.clientes.find(c=>c.id===clienteId)?.nome||''} (${tipoOp})`
+      });
+      if (vaziosDev > 0) {
+        dados.movimentacoes.push({
+          id: gerarId(), data: new Date().toISOString(), tipo: 'entrada_vazio', ano, qtd: vaziosDev,
+          descricao: `Retorno ${vaziosDev} vazio(s)`
+        });
+      }
+
+      salvarDados();
+      limparFormVenda();
+      atualizarDashboard();
+
+      if (confirm('Venda registrada!\n\nDeseja imprimir a notinha agora?')) {
+        imprimirNota(venda.id);
+      }
+    });
+
+    // ===================== IMPRIMIR NOTINHA =====================
+    function imprimirNota(vendaId) {
+      const v = dados.vendas.find(x => x.id === vendaId);
+      if (!v) {
+        alert('Venda não encontrada.');
+        return;
+      }
+      const cli = dados.clientes.find(c => c.id === v.clienteId);
+      const nomeCliente = cli ? cli.nome : 'Cliente';
+      const endCliente = cli ? [cli.endereco, cli.bairro, cli.cidade].filter(Boolean).join(' – ') : '';
+      const telCliente = cli ? (cli.whatsapp || '') : '';
+
+      let itensHtml = '';
+      itensHtml += `<tr>
+        <td style="padding:4px 0;">Galão 20L (ano ${v.anoGalao}) × ${v.qtdGaloes}</td>
+        <td style="padding:4px 0; text-align:right;">${formatMoney((v.precoGalao || 0) * (v.qtdGaloes || 0))}</td>
+      </tr>`;
+
+      if (v.tipoOp === 'entrega' && (v.taxaEntrega || 0) > 0) {
+        itensHtml += `<tr>
+          <td style="padding:4px 0;">Taxa de entrega × ${v.qtdGaloes}</td>
+          <td style="padding:4px 0; text-align:right;">${formatMoney((v.taxaEntrega || 0) * (v.qtdGaloes || 0))}</td>
+        </tr>`;
+      }
+
+      if (v.outroProdutoId && (v.outroQtd || 0) > 0) {
+        const prod = dados.produtos.find(p => p.id === v.outroProdutoId);
+        const nomeProd = prod ? prod.nome : 'Outro produto';
+        itensHtml += `<tr>
+          <td style="padding:4px 0;">${nomeProd} × ${v.outroQtd}</td>
+          <td style="padding:4px 0; text-align:right;">${formatMoney((v.outroPreco || (prod ? prod.preco : 0)) * v.outroQtd)}</td>
+        </tr>`;
+      }
+
+      const statusLabel = v.statusPagamento === 'pago' ? 'PAGO' : (v.statusPagamento === 'parcial' ? 'PARCIAL' : 'A PAGAR');
+      const restante = (Number(v.valorTotal) || 0) - (Number(v.valorPago) || 0);
+
+      const w = window.open('', '_blank', 'width=360,height=600');
+      if (!w) {
+        alert('Permita pop-ups para imprimir a notinha.');
+        return;
+      }
+      w.document.write(`
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <title>Notinha - ${nomeCliente}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; padding: 16px; max-width: 320px; margin: 0 auto; }
+            h1 { font-size: 16px; text-align: center; margin-bottom: 4px; }
+            .sub { text-align: center; font-size: 11px; color: #555; margin-bottom: 12px; }
+            .linha { border-top: 1px dashed #999; margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            .total { font-size: 15px; font-weight: bold; }
+            .rodape { text-align: center; font-size: 11px; color: #666; margin-top: 14px; }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>COMPROVANTE DE VENDA</h1>
+          <div class="sub">Água – Galão 20L</div>
+          <div class="linha"></div>
+          <p><strong>Data:</strong> ${formatDate(v.data)}</p>
+          <p><strong>Cliente:</strong> ${nomeCliente}</p>
+          ${telCliente ? `<p><strong>WhatsApp:</strong> ${telCliente}</p>` : ''}
+          ${endCliente ? `<p><strong>Endereço:</strong> ${endCliente}</p>` : ''}
+          <p><strong>Tipo:</strong> ${v.tipoOp === 'entrega' ? 'Entrega (' + nomeEntregador(v.entregadorId) + ')' : 'Retirada'}</p>
+          <div class="linha"></div>
+          <table>${itensHtml}</table>
+          <div class="linha"></div>
+          <table>
+            <tr class="total">
+              <td style="padding:4px 0;">TOTAL</td>
+              <td style="padding:4px 0; text-align:right;">${formatMoney(v.valorTotal)}</td>
+            </tr>
+            <tr>
+              <td style="padding:4px 0;">Pago</td>
+              <td style="padding:4px 0; text-align:right;">${formatMoney(v.valorPago)}</td>
+            </tr>
+            ${restante > 0.009 ? `<tr>
+              <td style="padding:4px 0;">Restante</td>
+              <td style="padding:4px 0; text-align:right;">${formatMoney(restante)}</td>
+            </tr>` : ''}
+          </table>
+          <div class="linha"></div>
+          <p style="text-align:center; font-weight:bold; margin:8px 0;">${statusLabel}</p>
+          ${v.obs ? `<p style="font-size:11px; color:#444;"><strong>Obs:</strong> ${v.obs}</p>` : ''}
+          ${(v.vaziosDevolvidos || 0) > 0 ? `<p style="font-size:11px;">Vazios devolvidos: ${v.vaziosDevolvidos}</p>` : ''}
+          ${(v.vaziosPendentes || 0) > 0 ? `<p style="font-size:11px;">Vazios pendentes: ${v.vaziosPendentes}</p>` : ''}
+          <div class="rodape">
+            Obrigado pela preferência!<br>
+            <span style="font-size:10px;">Gerado em ${new Date().toLocaleString('pt-BR')}</span>
+          </div>
+          <div class="no-print" style="margin-top:20px; text-align:center;">
+            <button onclick="window.print()" style="padding:10px 20px; font-size:14px; cursor:pointer;">Imprimir</button>
+            <button onclick="window.close()" style="padding:10px 20px; font-size:14px; cursor:pointer; margin-left:8px;">Fechar</button>
+          </div>
+        </body>
+        </html>
+      `);
+      w.document.close();
+      setTimeout(function() {
+        try { w.print(); } catch (e) {}
+      }, 400);
+    }
+
+    // A RECEBER
+    function renderAReceber() {
+      const abertas = dados.vendas.filter(v => v.statusPagamento !== 'pago');
+      const tbody = document.getElementById('tabela-a-receber');
+      const sem = document.getElementById('sem-a-receber');
+      if (abertas.length === 0) {
+        tbody.innerHTML = '';
+        sem.classList.remove('hidden');
+        return;
+      }
+      sem.classList.add('hidden');
+      abertas.sort((a,b) => new Date(b.data) - new Date(a.data));
+      tbody.innerHTML = abertas.map(v => {
+        const cli = dados.clientes.find(c => c.id === v.clienteId);
+        const restante = (Number(v.valorTotal)||0) - (Number(v.valorPago)||0);
+        const badge = v.statusPagamento === 'parcial' ? 'badge-parcial' : 'badge-aberto';
+        const label = v.statusPagamento === 'parcial' ? 'Parcial' : 'A pagar';
+        return `<tr class="hover:bg-gray-50">
+          <td class="px-4 py-3">${formatDate(v.data)}</td>
+          <td class="px-4 py-3 font-medium">${cli ? cli.nome : '—'}</td>
+          <td class="px-4 py-3">${formatMoney(v.valorTotal)}</td>
+          <td class="px-4 py-3">${formatMoney(v.valorPago)}</td>
+          <td class="px-4 py-3 font-medium text-red-600">${formatMoney(restante)}</td>
+          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs ${badge}">${label}</span></td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            <button onclick="abrirModalPagar('${v.id}')" class="text-green-600 hover:underline text-sm">Receber</button>
+            <button onclick="imprimirNota('${v.id}')" class="text-evg-blue hover:underline text-sm ml-2">Nota</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function abrirModalPagar(vendaId) {
+      const v = dados.vendas.find(x => x.id === vendaId);
+      if (!v) return;
+      document.getElementById('modal-pagar').classList.remove('hidden');
+      document.getElementById('pagar-venda-id').value = vendaId;
+      const restante = (Number(v.valorTotal)||0) - (Number(v.valorPago)||0);
+      document.getElementById('pagar-valor').value = restante.toFixed(2);
+    }
+    function fecharModalPagar() { document.getElementById('modal-pagar').classList.add('hidden'); }
+
+    document.getElementById('form-pagar').addEventListener('submit', e => {
+      e.preventDefault();
+      const id = document.getElementById('pagar-venda-id').value;
+      const valor = parseFloat(document.getElementById('pagar-valor').value) || 0;
+      const v = dados.vendas.find(x => x.id === id);
+      if (!v) return;
+      v.valorPago = (Number(v.valorPago)||0) + valor;
+      if (v.valorPago >= v.valorTotal) {
+        v.valorPago = v.valorTotal;
+        v.statusPagamento = 'pago';
+      } else v.statusPagamento = 'parcial';
+      salvarDados();
+      fecharModalPagar();
+      renderAReceber();
+      atualizarDashboard();
+      alert('Pagamento registrado!');
+    });
+
+    // RELATÓRIOS
+    let periodoAtual = 'hoje';
+
+    function setPeriodoRelatorio(periodo) {
+      periodoAtual = periodo;
+      ['hoje','semana','mes','mes-passado'].forEach(p => {
+        const btn = document.getElementById('btn-rel-' + p);
+        if (btn) btn.className = p === periodo
+          ? 'px-4 py-2 rounded-lg text-sm font-medium bg-evg-blue text-white'
+          : 'px-4 py-2 rounded-lg text-sm font-medium bg-white border';
+      });
+      renderRelatorio(periodo);
+    }
+
+    function renderRelatorio(periodo) {
+      const agora = new Date();
+      let inicio, fim = new Date();
+      if (periodo === 'hoje') inicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+      else if (periodo === 'semana') {
+        inicio = new Date(agora);
+        inicio.setDate(agora.getDate() - agora.getDay());
+        inicio.setHours(0,0,0,0);
+      } else if (periodo === 'mes') inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
+      else {
+        inicio = new Date(agora.getFullYear(), agora.getMonth()-1, 1);
+        fim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59);
+      }
+
+      const vendasPeriodo = dados.vendas.filter(v => {
+        const d = new Date(v.data);
+        return d >= inicio && d <= fim;
+      });
+
+      let totalValor = 0, totalGaloes = 0, totalVazios = 0;
+      const porPessoa = {};
+
+      vendasPeriodo.forEach(v => {
+        totalValor += Number(v.valorTotal)||0;
+        totalGaloes += Number(v.qtdGaloes)||0;
+        totalVazios += Number(v.vaziosDevolvidos)||0;
+        if (v.tipoOp === 'entrega') {
+          const key = v.entregadorId || 'dono';
+          if (!porPessoa[key]) porPessoa[key] = { qtd: 0, taxa: 0 };
+          porPessoa[key].qtd += Number(v.qtdGaloes)||0;
+          porPessoa[key].taxa += (Number(v.taxaEntrega)||0) * (Number(v.qtdGaloes)||0);
+        }
+      });
+
+      document.getElementById('rel-total-valor').textContent = formatMoney(totalValor);
+      document.getElementById('rel-total-galoes').textContent = totalGaloes;
+      document.getElementById('rel-vazios-recebidos').textContent = totalVazios;
+      document.getElementById('rel-qtd-vendas').textContent = vendasPeriodo.length;
+
+      const contPessoa = document.getElementById('rel-entregas-pessoa');
+      const keys = Object.keys(porPessoa);
+      if (keys.length === 0) {
+        contPessoa.innerHTML = '<p class="text-gray-400">Nenhuma entrega neste período.</p>';
+      } else {
+        contPessoa.innerHTML = keys.map(k => {
+          const e = porPessoa[k];
+          const isDono = k === 'dono';
+          return `<div class="flex justify-between items-center py-2 border-b last:border-0">
+            <div>
+              <span class="font-medium">${nomeEntregador(k)}</span>
+              <span class="text-xs text-gray-500 ml-2">${e.qtd} galão(ões) entregues</span>
+            </div>
+            <div class="text-right">
+              <div class="font-medium ${isDono ? 'text-green-600' : 'text-amber-600'}">${formatMoney(e.taxa)}</div>
+              <div class="text-xs text-gray-500">${isDono ? 'fica com o dono' : 'pagar ao funcionário'}</div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      const cont = document.getElementById('rel-detalhe');
+      if (vendasPeriodo.length === 0) {
+        cont.innerHTML = '<p class="text-gray-400">Nenhuma venda neste período.</p>';
+        return;
+      }
+      vendasPeriodo.sort((a,b) => new Date(b.data) - new Date(a.data));
+      cont.innerHTML = vendasPeriodo.map(v => {
+        const cli = dados.clientes.find(c => c.id === v.clienteId);
+        return `<div class="flex justify-between items-start py-2 border-b last:border-0 gap-2">
+          <div class="min-w-0">
+            <div class="font-medium">${cli ? cli.nome : '—'}</div>
+            <div class="text-xs text-gray-500">
+              ${formatDate(v.data)} • ${v.qtdGaloes} galão(ões) ano ${v.anoGalao}
+              • ${v.tipoOp === 'entrega' ? 'Entrega (' + nomeEntregador(v.entregadorId) + ')' : 'Retirada'}
+              ${v.vaziosDevolvidos ? ' • ' + v.vaziosDevolvidos + ' vazios devolvidos' : ''}
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-medium">${formatMoney(v.valorTotal)}</div>
+            <div class="text-xs ${v.statusPagamento === 'pago' ? 'text-green-600' : 'text-red-600'}">${v.statusPagamento === 'pago' ? 'Pago' : 'Em aberto'}</div>
+            <button type="button" onclick="imprimirNota('${v.id}')" class="text-xs text-evg-blue hover:underline mt-0.5">Imprimir nota</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // FUNCIONÁRIOS
+    function renderFuncionarios() {
+      const tbody = document.getElementById('tabela-funcionarios');
+      const sem = document.getElementById('sem-funcionarios');
+      if (dados.funcionarios.length === 0) {
+        tbody.innerHTML = '';
+        sem.classList.remove('hidden');
+        return;
+      }
+      sem.classList.add('hidden');
+      tbody.innerHTML = dados.funcionarios.map(f => `
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">${f.nome}</td>
+          <td class="px-4 py-3 text-right">
+            <button onclick="editarFuncionario('${f.id}')" class="text-evg-blue hover:underline text-sm">Editar</button>
+            <button onclick="excluirFuncionario('${f.id}')" class="text-red-600 hover:underline text-sm ml-2">Excluir</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function abrirModalFuncionario(id=null) {
+      document.getElementById('modal-funcionario').classList.remove('hidden');
+      document.getElementById('form-funcionario').reset();
+      document.getElementById('func-id').value = '';
+      document.getElementById('modal-func-titulo').textContent = 'Novo Funcionário';
+      if (id) {
+        const f = dados.funcionarios.find(x => x.id === id);
+        if (f) {
+          document.getElementById('func-id').value = f.id;
+          document.getElementById('func-nome').value = f.nome;
+          document.getElementById('modal-func-titulo').textContent = 'Editar Funcionário';
+        }
+      }
+    }
+    function fecharModalFuncionario() { document.getElementById('modal-funcionario').classList.add('hidden'); }
+    function editarFuncionario(id) { abrirModalFuncionario(id); }
+
+    document.getElementById('form-funcionario').addEventListener('submit', e => {
+      e.preventDefault();
+      const id = document.getElementById('func-id').value;
+      const nome = document.getElementById('func-nome').value.trim();
+      if (!nome) return;
+      if (id) {
+        const idx = dados.funcionarios.findIndex(f => f.id === id);
+        if (idx >= 0) dados.funcionarios[idx].nome = nome;
+      } else {
+        dados.funcionarios.push({ id: gerarId(), nome });
+      }
+      salvarDados();
+      fecharModalFuncionario();
+      renderFuncionarios();
+    });
+
+    function excluirFuncionario(id) {
+      if (!confirm('Excluir este funcionário?')) return;
+      dados.funcionarios = dados.funcionarios.filter(f => f.id !== id);
+      salvarDados();
+      renderFuncionarios();
+    }
+
+    // CONFIG
+    document.getElementById('form-config').addEventListener('submit', e => {
+      e.preventDefault();
+      dados.config.precoGalao = parseFloat(document.getElementById('config-preco-galao').value) || 15;
+      dados.config.taxaEntrega = parseFloat(document.getElementById('config-taxa-entrega').value) || 4;
+      // atualiza produto galão também
+      const g = dados.produtos.find(p => p.tipo === 'galao');
+      if (g) g.preco = dados.config.precoGalao;
+      salvarDados();
+      alert('Configurações salvas!');
+    });
+
+    function exportarDados() {
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'backup-agua-' + hojeISO() + '.json';
+      a.click();
+    }
+
+    function importarDados(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (confirm('Isso vai substituir todos os dados atuais. Continuar?')) {
+            dados = parsed;
+            if (!dados.config) dados.config = { precoGalao: 15, taxaEntrega: 4 };
+            salvarDados();
+            alert('Dados importados!');
+            showPage('dashboard');
+          }
+        } catch (err) {
+          alert('Arquivo inválido');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // INIT
+    carregarDados();
+    showPage('dashboard');
+  </script>
+
+  <!-- Navegação inferior (celular) -->
+  <nav class="bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] flex justify-around items-stretch safe-area-pb" style="padding-bottom: env(safe-area-inset-bottom, 0);">
+    <button type="button" onclick="showPage('dashboard')" data-nav="dashboard" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
+      <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">📊</span>
+      Início
+    </button>
+    <button type="button" onclick="showPage('nova-venda')" data-nav="nova-venda" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
+      <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">🚚</span>
+      Venda
+    </button>
+    <button type="button" onclick="showPage('clientes')" data-nav="clientes" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
+      <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">👥</span>
+      Clientes
+    </button>
+    <button type="button" onclick="showPage('estoque')" data-nav="estoque" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
+      <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">📦</span>
+      Estoque
+    </button>
+    <button type="button" onclick="abrirMenuMobile()" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
+      <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">☰</span>
+      Mais
+    </button>
+  </nav>
+</body>
+</html>
