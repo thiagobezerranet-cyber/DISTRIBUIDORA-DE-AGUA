@@ -7,6 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#0f2744" />
   <title>Água – Controle de Galões e Vendas</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -47,7 +48,28 @@
 </head>
 <body class="bg-evg-light text-gray-800 font-sans">
 
-  <div id="app" class="min-h-screen flex">
+  <!-- LOGIN -->
+  <div id="tela-login" class="fixed inset-0 z-[100] bg-evg-dark flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+      <h1 class="text-xl font-bold text-evg-blue text-center mb-1">Água – Galões</h1>
+      <p class="text-sm text-gray-500 text-center mb-6">Entre com nome e PIN</p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Nome</label>
+          <input type="text" id="login-nome" class="w-full px-4 py-3 border rounded-lg text-base" placeholder="Ex: Dono ou Matheus" autocomplete="username">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">PIN</label>
+          <input type="password" id="login-pin" class="w-full px-4 py-3 border rounded-lg text-base" placeholder="••••" inputmode="numeric" autocomplete="current-password">
+        </div>
+        <p id="login-erro" class="text-sm text-red-600 hidden"></p>
+        <button type="button" onclick="fazerLogin()" class="w-full bg-evg-blue hover:bg-evg-dark text-white py-3 rounded-lg font-medium text-base">Entrar</button>
+      </div>
+      <p class="text-xs text-gray-400 text-center mt-4">Primeiro acesso (se já rodou o SQL): <strong>Dono</strong> / <strong>1234</strong></p>
+    </div>
+  </div>
+
+  <div id="app" class="min-h-screen flex hidden">
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden" onclick="fecharMenuMobile()"></div>
 
     <aside id="sidebar" class="w-64 bg-evg-dark text-white flex flex-col fixed h-full z-40
@@ -68,7 +90,7 @@
           <span>📊</span> Dashboard
         </button>
         <button onclick="showPage('nova-venda')" data-page="nova-venda" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
-          <span>🚚</span> Nova Venda / Entrega
+          <span>🚚</span> Novo Pedido
         </button>
         <button onclick="showPage('clientes')" data-page="clientes" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
           <span>👥</span> Clientes
@@ -77,7 +99,7 @@
           <span>📦</span> Estoque de Galões
         </button>
         <button onclick="showPage('a-receber')" data-page="a-receber" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
-          <span>💰</span> A Receber
+          <span>📋</span> Pedidos / Entregas
         </button>
         <button onclick="showPage('relatorios')" data-page="relatorios" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
           <span>📋</span> Relatórios
@@ -87,6 +109,9 @@
         </button>
         <button onclick="showPage('config')" data-page="config" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
           <span>⚙️</span> Preços & Config
+        </button>
+        <button type="button" onclick="sair()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition text-red-300 mt-4">
+          <span>🚪</span> Sair
         </button>
       </nav>
 
@@ -147,7 +172,8 @@
 
         <!-- NOVA VENDA -->
         <div id="page-nova-venda" class="page hidden">
-          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">Nova Venda / Entrega</h1>
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">Novo Pedido</h1>
+          <p class="text-sm text-gray-500 -mt-4 mb-6">O pedido fica em <strong>Pedidos / Entregas</strong>. O dinheiro só entra no caixa depois de entregar e marcar o pagamento.</p>
           <form id="form-venda" class="bg-white rounded-xl shadow p-5 sm:p-6 space-y-5 max-w-3xl">
             <!-- Cliente -->
             <div>
@@ -256,13 +282,14 @@
                 <span class="font-medium">Total da venda</span>
                 <span class="text-xl font-bold text-evg-blue" id="venda-total-display">R$ 0,00</span>
               </div>
+              <p class="text-xs text-gray-600 mb-2">No pedido o pagamento fica <strong>a receber</strong>. Você marca se pagou na hora da entrega, em <strong>Pedidos / Entregas</strong>.</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium mb-1">Status do pagamento *</label>
+                  <label class="block text-sm font-medium mb-1">Já pagou agora? (opcional)</label>
                   <select id="venda-status-pag" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="onStatusPagChange()">
-                    <option value="pago">Pago</option>
-                    <option value="a_pagar">A pagar</option>
-                    <option value="parcial">Parcial</option>
+                    <option value="a_pagar" selected>Ainda não (a receber)</option>
+                    <option value="pago">Já pagou (ex: retirada no balcão)</option>
+                    <option value="parcial">Pagou parcial</option>
                   </select>
                 </div>
                 <div>
@@ -279,7 +306,7 @@
             </div>
 
             <div class="flex flex-col sm:flex-row flex-wrap gap-3 pt-2 border-t">
-              <button type="submit" class="w-full sm:w-auto bg-evg-blue hover:bg-evg-dark text-white px-6 py-3 rounded-lg font-medium text-base">Salvar Venda</button>
+              <button type="submit" class="w-full sm:w-auto bg-evg-blue hover:bg-evg-dark text-white px-6 py-3 rounded-lg font-medium text-base">Salvar Pedido</button>
               <button type="button" onclick="limparFormVenda()" class="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">Limpar</button>
             </div>
           </form>
@@ -291,8 +318,14 @@
             <h1 class="text-xl sm:text-2xl font-bold text-evg-blue">Clientes</h1>
             <button onclick="abrirModalCliente()" class="bg-evg-blue hover:bg-evg-dark text-white px-4 py-2 rounded-lg text-sm font-medium">+ Novo Cliente</button>
           </div>
-          <div class="bg-white rounded-xl shadow p-4 mb-4">
+          <div class="bg-white rounded-xl shadow p-4 mb-4 space-y-3">
             <input type="text" id="busca-cliente" placeholder="Buscar por nome, telefone ou endereço..." class="w-full px-4 py-3 border rounded-lg text-sm" oninput="renderClientes()">
+            <div class="flex flex-col sm:flex-row gap-2">
+              <select id="filtro-bairro" class="flex-1 px-3 py-2 border rounded-lg text-sm" onchange="renderClientes()">
+                <option value="">Todos os bairros</option>
+              </select>
+              <div class="text-sm text-gray-600 self-center" id="clientes-total-label"></div>
+            </div>
           </div>
           <!-- Cards no celular -->
           <div id="clientes-cards" class="mobile-only-cards space-y-3 md:hidden"></div>
@@ -368,28 +401,19 @@
           </div>
         </div>
 
-        <!-- A RECEBER -->
+        <!-- PEDIDOS / ENTREGAS -->
         <div id="page-a-receber" class="page hidden">
-          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-6">A Receber</h1>
-          <div class="bg-white rounded-xl shadow overflow-hidden">
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead class="bg-evg-blue text-white">
-                  <tr>
-                    <th class="text-left px-4 py-3">Data</th>
-                    <th class="text-left px-4 py-3">Cliente</th>
-                    <th class="text-left px-4 py-3">Total</th>
-                    <th class="text-left px-4 py-3">Pago</th>
-                    <th class="text-left px-4 py-3">Restante</th>
-                    <th class="text-left px-4 py-3">Status</th>
-                    <th class="text-right px-4 py-3">Ação</th>
-                  </tr>
-                </thead>
-                <tbody id="tabela-a-receber" class="divide-y divide-gray-100"></tbody>
-              </table>
-            </div>
-            <div id="sem-a-receber" class="hidden p-8 text-center text-gray-500">Nenhuma conta em aberto.</div>
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-2">Pedidos / Entregas</h1>
+          <p class="text-sm text-gray-500 mb-4">Pedidos a entregar e a receber. Na porta do cliente, marque a entrega e o pagamento.</p>
+
+          <div class="flex flex-wrap gap-2 mb-4">
+            <button type="button" onclick="setFiltroPedidos('a_entregar')" id="filtro-ped-entregar" class="px-3 py-2 rounded-lg text-sm font-medium bg-evg-blue text-white">A entregar</button>
+            <button type="button" onclick="setFiltroPedidos('a_receber')" id="filtro-ped-receber" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">A receber</button>
+            <button type="button" onclick="setFiltroPedidos('todos')" id="filtro-ped-todos" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Todos recentes</button>
           </div>
+
+          <div id="lista-pedidos" class="space-y-3"></div>
+          <div id="sem-pedidos" class="hidden bg-white rounded-xl shadow p-8 text-center text-gray-500">Nenhum pedido nesta lista.</div>
         </div>
 
         <!-- RELATÓRIOS -->
@@ -425,9 +449,24 @@
             <div id="rel-entregas-pessoa" class="space-y-2 text-sm"></div>
           </div>
 
-          <div class="bg-white rounded-xl shadow p-5">
+          <div class="bg-white rounded-xl shadow p-5 mb-6">
             <h2 class="font-semibold text-evg-blue mb-3">Detalhamento das vendas</h2>
             <div id="rel-detalhe" class="space-y-2 text-sm max-h-96 overflow-y-auto"></div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5 mb-6">
+            <h2 class="font-semibold text-evg-blue mb-3">Clientes por bairro</h2>
+            <div id="rel-bairros" class="space-y-2 text-sm"></div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5">
+            <h2 class="font-semibold text-evg-blue mb-3">Reativar clientes (última compra há X dias)</h2>
+            <p class="text-xs text-gray-500 mb-3">Escolha quantos dias desde a última compra para ver quem ligar.</p>
+            <div class="flex flex-wrap gap-2 mb-3">
+              <input type="number" id="rel-dias-reativar" min="1" value="7" class="w-24 px-3 py-2 border rounded-lg text-sm">
+              <button type="button" onclick="renderReativar()" class="bg-evg-blue text-white px-4 py-2 rounded-lg text-sm">Buscar</button>
+            </div>
+            <div id="rel-reativar" class="space-y-2 text-sm max-h-80 overflow-y-auto"></div>
           </div>
         </div>
 
@@ -516,6 +555,11 @@
           </div>
         </div>
         <div>
+          <label class="block text-sm font-medium mb-1">Ano do galão que ele tem em casa</label>
+          <input type="number" id="cliente-ano-galao" min="2018" max="2035" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ex: 2025">
+          <p class="text-xs text-gray-500 mt-1">Atualiza também quando você entrega um galão novo</p>
+        </div>
+        <div>
           <label class="block text-sm font-medium mb-1">Observações</label>
           <textarea id="cliente-obs" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea>
         </div>
@@ -599,11 +643,16 @@
       <form id="form-funcionario" class="p-5 space-y-4">
         <input type="hidden" id="func-id">
         <div>
-          <label class="block text-sm font-medium mb-1">Nome *</label>
-          <input type="text" id="func-nome" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ex: Joãozinho">
+          <label class="block text-sm font-medium mb-1">Nome de login *</label>
+          <input type="text" id="func-nome" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ex: Matheus">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">PIN (senha numérica) *</label>
+          <input type="text" id="func-pin" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ex: 2580" inputmode="numeric">
+          <p class="text-xs text-gray-500 mt-1">O entregador entra só com nome + PIN (sem e-mail)</p>
         </div>
         <div class="flex gap-3 pt-2">
-          <button type="submit" class="bg-evg-blue hover:bg-evg-dark text-white px-5 py-2 rounded-lg text-sm font-medium">Salvar</button>
+          <button type="submit" class="bg-evg-blue hover:bg-evg-dark text-white px-5 py-2 rounded-lg text-sm font-medium">Salvar acesso</button>
           <button type="button" onclick="fecharModalFuncionario()" class="px-5 py-2 border rounded-lg text-sm">Cancelar</button>
         </div>
       </form>
@@ -659,7 +708,23 @@
   </div>
 
   <script>
+    // ========== CONFIGURE AQUI (Supabase) ==========
+    // Cole a URL e a chave anon do seu projeto (Settings → API)
+    const SUPABASE_URL = 'https://ttrjzirsnoklmlwokdg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0cmp6aXJzcm5va2xtbHdva2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczMzIyNTEsImV4cCI6MjEwMjkwODI1MX0.-YuR1MREPtlJ6eck4HkJZ4v1j_0o9P2IL0ot-HYdCmk';
+    // ===============================================
+
     const STORAGE_KEY = 'agua_sistema_v2';
+    const SESSION_KEY = 'agua_sessao_user';
+
+    let sb = null;
+    let online = false;
+    let usuarioAtual = null; // { id, nome, role }
+
+    if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      online = true;
+    }
 
     let dados = {
       config: { precoGalao: 15, taxaEntrega: 4 },
@@ -672,12 +737,162 @@
       estoque: {},
       comClientes: {},
       vendas: [],
-      movimentacoes: []
+      movimentacoes: [],
+      usuarios: []
     };
 
     let cadastrandoNaVenda = false;
 
-    function carregarDados() {
+    function isAdmin() {
+      return usuarioAtual && usuarioAtual.role === 'admin';
+    }
+
+    async function fazerLogin() {
+      const nome = (document.getElementById('login-nome').value || '').trim();
+      const pin = (document.getElementById('login-pin').value || '').trim();
+      const erro = document.getElementById('login-erro');
+      erro.classList.add('hidden');
+      if (!nome || !pin) {
+        erro.textContent = 'Informe nome e PIN';
+        erro.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        if (online && sb) {
+          const { data, error } = await sb.from('usuarios').select('*').eq('nome', nome).eq('pin', pin).eq('ativo', true).maybeSingle();
+          if (error) throw error;
+          if (!data) {
+            erro.textContent = 'Nome ou PIN incorreto';
+            erro.classList.remove('hidden');
+            return;
+          }
+          usuarioAtual = { id: data.id, nome: data.nome, role: data.role };
+        } else {
+          // Modo local (sem Supabase ainda)
+          await carregarDados();
+          let u = (dados.usuarios || []).find(x => x.nome === nome && x.pin === pin && x.ativo !== false);
+          if (!u && nome.toLowerCase() === 'dono' && pin === '1234') {
+            u = { id: 'local-admin', nome: 'Dono', role: 'admin', pin: '1234', ativo: true };
+            if (!dados.usuarios) dados.usuarios = [];
+            if (!dados.usuarios.find(x => x.nome === 'Dono')) {
+              dados.usuarios.push(u);
+              salvarDados();
+            }
+          }
+          if (!u) {
+            erro.textContent = 'Nome ou PIN incorreto (local). Use Dono / 1234 ou cadastre no Supabase.';
+            erro.classList.remove('hidden');
+            return;
+          }
+          usuarioAtual = { id: u.id, nome: u.nome, role: u.role };
+        }
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(usuarioAtual));
+        document.getElementById('tela-login').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        aplicarPermissoes();
+        await carregarDados();
+        showPage(isAdmin() ? 'dashboard' : 'a-receber');
+      } catch (e) {
+        console.error(e);
+        erro.textContent = 'Erro ao entrar: ' + (e.message || e);
+        erro.classList.remove('hidden');
+      }
+    }
+
+    function sair() {
+      sessionStorage.removeItem(SESSION_KEY);
+      usuarioAtual = null;
+      document.getElementById('app').classList.add('hidden');
+      document.getElementById('tela-login').classList.remove('hidden');
+      document.getElementById('login-pin').value = '';
+    }
+
+    function aplicarPermissoes() {
+      const admin = isAdmin();
+      // Entregador: só pedido, entregas, clientes (leitura/criar pedido)
+      document.querySelectorAll('.sidebar-link').forEach(btn => {
+        const page = btn.dataset.page;
+        const liberadas = ['nova-venda', 'a-receber', 'clientes'];
+        if (!admin && page && !liberadas.includes(page)) {
+          btn.classList.add('hidden');
+        } else {
+          btn.classList.remove('hidden');
+        }
+      });
+      document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
+        const nav = btn.dataset.nav;
+        if (!nav) return; // botão "Mais"
+        const liberadas = ['nova-venda', 'a-receber', 'clientes'];
+        if (!admin && !liberadas.includes(nav) && nav !== 'dashboard') {
+          // entregador: esconde dashboard do bottom se quiser
+        }
+        if (!admin && nav === 'dashboard') btn.classList.add('hidden');
+        else if (nav === 'dashboard') btn.classList.remove('hidden');
+      });
+      // banner nome
+      let bar = document.getElementById('user-bar');
+      if (!bar) {
+        const header = document.querySelector('.md\\:hidden.sticky') || document.querySelector('#app');
+      }
+    }
+
+    async function carregarDados() {
+      if (online && sb) {
+        try {
+          const [cfg, cli, prod, est, com, ped, mov, usu] = await Promise.all([
+            sb.from('config').select('*').eq('id', 1).maybeSingle(),
+            sb.from('clientes').select('*').order('nome'),
+            sb.from('produtos').select('*'),
+            sb.from('estoque').select('*'),
+            sb.from('com_clientes').select('*'),
+            sb.from('pedidos').select('*').order('data', { ascending: false }),
+            sb.from('movimentacoes').select('*').order('data', { ascending: false }).limit(100),
+            sb.from('usuarios').select('id, nome, role, ativo, pin')
+          ]);
+
+          if (cfg.data) {
+            dados.config = { precoGalao: Number(cfg.data.preco_galao), taxaEntrega: Number(cfg.data.taxa_entrega) };
+          }
+          dados.clientes = (cli.data || []).map(c => ({
+            id: c.id, nome: c.nome, whatsapp: c.whatsapp, endereco: c.endereco,
+            bairro: c.bairro, cidade: c.cidade, obs: c.obs,
+            anoGalaoAtual: c.ano_galao_atual, criadoEm: c.criado_em
+          }));
+          if (prod.data && prod.data.length) {
+            dados.produtos = prod.data.map(p => ({ id: p.id, nome: p.nome, tipo: p.tipo, preco: Number(p.preco) }));
+          }
+          dados.estoque = {};
+          (est.data || []).forEach(e => { dados.estoque[e.ano] = { cheios: e.cheios || 0, vazios: e.vazios || 0 }; });
+          dados.comClientes = {};
+          (com.data || []).forEach(r => {
+            if (!dados.comClientes[r.cliente_id]) dados.comClientes[r.cliente_id] = {};
+            dados.comClientes[r.cliente_id][r.ano] = r.qtd || 0;
+          });
+          dados.vendas = (ped.data || []).map(p => ({
+            id: p.id, data: p.data, dataEntrega: p.data_entrega, clienteId: p.cliente_id,
+            anoGalao: p.ano_galao, qtdGaloes: p.qtd_galoes, precoGalao: Number(p.preco_galao),
+            tipoOp: p.tipo_op, taxaEntrega: Number(p.taxa_entrega), entregadorId: p.entregador_id,
+            vaziosDevolvidos: p.vazios_devolvidos, vaziosPendentes: p.vazios_pendentes,
+            outroProdutoId: p.outro_produto_id, outroQtd: p.outro_qtd, outroPreco: Number(p.outro_preco),
+            valorTotal: Number(p.valor_total), valorPago: Number(p.valor_pago),
+            statusPagamento: p.status_pagamento, statusEntrega: p.status_entrega,
+            formaPagamento: p.forma_pagamento, obs: p.obs
+          }));
+          dados.movimentacoes = (mov.data || []).map(m => ({
+            id: m.id, data: m.data, tipo: m.tipo, ano: m.ano, qtd: m.qtd, descricao: m.descricao
+          }));
+          dados.usuarios = usu.data || [];
+          dados.funcionarios = (usu.data || []).filter(u => u.role === 'entregador').map(u => ({
+            id: u.id, nome: u.nome, pin: u.pin, ativo: u.ativo
+          }));
+        } catch (e) {
+          console.error('Erro Supabase carregar:', e);
+          alert('Erro ao carregar dados online: ' + (e.message || e));
+        }
+        return;
+      }
+      // Local
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
@@ -685,6 +900,7 @@
           dados = { ...dados, ...parsed };
           if (!dados.config) dados.config = { precoGalao: 15, taxaEntrega: 4 };
           if (!dados.funcionarios) dados.funcionarios = [];
+          if (!dados.usuarios) dados.usuarios = [];
           if (!dados.estoque) dados.estoque = {};
           if (!dados.comClientes) dados.comClientes = {};
           if (!dados.movimentacoes) dados.movimentacoes = [];
@@ -692,11 +908,69 @@
       } catch (e) { console.error(e); }
     }
 
-    function salvarDados() {
+    async function salvarDados() {
+      if (online && sb) {
+        // Persistência online é feita por operações específicas (insert/update).
+        // Aqui só mantém um snapshot local de segurança.
+        try { localStorage.setItem(STORAGE_KEY + '_cache', JSON.stringify(dados)); } catch (e) {}
+        return;
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
     }
 
+    async function sbUpsertPedido(venda) {
+      if (!online || !sb) return;
+      const row = {
+        id: venda.id,
+        data: venda.data,
+        data_entrega: venda.dataEntrega || null,
+        cliente_id: venda.clienteId,
+        ano_galao: venda.anoGalao,
+        qtd_galoes: venda.qtdGaloes,
+        preco_galao: venda.precoGalao,
+        tipo_op: venda.tipoOp,
+        taxa_entrega: venda.taxaEntrega,
+        entregador_id: venda.entregadorId || null,
+        vazios_devolvidos: venda.vaziosDevolvidos || 0,
+        vazios_pendentes: venda.vaziosPendentes || 0,
+        outro_produto_id: venda.outroProdutoId || null,
+        outro_qtd: venda.outroQtd || 0,
+        outro_preco: venda.outroPreco || 0,
+        valor_total: venda.valorTotal,
+        valor_pago: venda.valorPago,
+        status_pagamento: venda.statusPagamento,
+        status_entrega: venda.statusEntrega || 'a_entregar',
+        forma_pagamento: venda.formaPagamento || null,
+        obs: venda.obs || null,
+        criado_por: usuarioAtual ? usuarioAtual.id : null
+      };
+      const { error } = await sb.from('pedidos').upsert(row);
+      if (error) console.error('sbUpsertPedido', error);
+    }
+
+    async function sbSyncEstoque() {
+      if (!online || !sb) return;
+      for (const ano of Object.keys(dados.estoque || {})) {
+        const e = dados.estoque[ano];
+        await sb.from('estoque').upsert({ ano, cheios: e.cheios || 0, vazios: e.vazios || 0 });
+      }
+    }
+
+    async function sbSyncComClientes() {
+      if (!online || !sb) return;
+      for (const cid of Object.keys(dados.comClientes || {})) {
+        for (const ano of Object.keys(dados.comClientes[cid])) {
+          await sb.from('com_clientes').upsert({
+            cliente_id: cid,
+            ano,
+            qtd: dados.comClientes[cid][ano] || 0
+          });
+        }
+      }
+    }
+
     function gerarId() {
+      if (online && window.crypto && crypto.randomUUID) return crypto.randomUUID();
       return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     }
 
@@ -777,25 +1051,30 @@
       const entregasHoje = {};
 
       dados.vendas.forEach(v => {
-        const data = (v.data || '').slice(0, 10);
+        const stEnt = v.statusEntrega || (v.statusPagamento === 'pago' ? 'entregue' : 'a_entregar');
+        const dataRef = (stEnt === 'entregue' && v.dataEntrega) ? v.dataEntrega : v.data;
+        const data = (dataRef || '').slice(0, 10);
         const mes = data.slice(0, 7);
         const total = Number(v.valorTotal) || 0;
         const pago = Number(v.valorPago) || 0;
         const galoes = Number(v.qtdGaloes) || 0;
 
-        if (data === hojeStr) {
-          hojeValor += total;
-          hojeGaloes += galoes;
-          if (v.tipoOp === 'entrega') {
-            const key = v.entregadorId || 'dono';
-            if (!entregasHoje[key]) entregasHoje[key] = { qtd: 0, taxa: 0 };
-            entregasHoje[key].qtd += galoes;
-            entregasHoje[key].taxa += (Number(v.taxaEntrega) || 0) * galoes;
+        // Caixa do dia/mês: só o que foi ENTREGUE (e conta o valor pago)
+        if (stEnt === 'entregue') {
+          if (data === hojeStr) {
+            hojeValor += pago; // só o que entrou de fato
+            hojeGaloes += galoes;
+            if (v.tipoOp === 'entrega') {
+              const key = v.entregadorId || 'dono';
+              if (!entregasHoje[key]) entregasHoje[key] = { qtd: 0, taxa: 0 };
+              entregasHoje[key].qtd += galoes;
+              entregasHoje[key].taxa += (Number(v.taxaEntrega) || 0) * galoes;
+            }
           }
-        }
-        if (mes === mesAtual) {
-          mesValor += total;
-          mesGaloes += galoes;
+          if (mes === mesAtual) {
+            mesValor += pago;
+            mesGaloes += galoes;
+          }
         }
         if (v.statusPagamento !== 'pago') aReceber += (total - pago);
       });
@@ -864,8 +1143,22 @@
 
     // CLIENTES
     function renderClientes() {
+      // preenche bairros no select
+      const selBairro = document.getElementById('filtro-bairro');
+      if (selBairro) {
+        const bairroAtual = selBairro.value;
+        const bairros = [...new Set(dados.clientes.map(c => (c.bairro || '').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+        selBairro.innerHTML = '<option value="">Todos os bairros</option>' +
+          bairros.map(b => `<option value="${b.replace(/"/g, '&quot;')}">${b}</option>`).join('');
+        if (bairroAtual) selBairro.value = bairroAtual;
+      }
+
       const busca = (document.getElementById('busca-cliente')?.value || '').toLowerCase();
+      const filtroBairro = (document.getElementById('filtro-bairro')?.value || '').trim();
       let lista = [...dados.clientes];
+      if (filtroBairro) {
+        lista = lista.filter(c => (c.bairro || '').trim() === filtroBairro);
+      }
       if (busca) {
         lista = lista.filter(c =>
           (c.nome||'').toLowerCase().includes(busca) ||
@@ -875,14 +1168,24 @@
         );
       }
       lista.sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+
+      const labelTotal = document.getElementById('clientes-total-label');
+      if (labelTotal) {
+        labelTotal.textContent = filtroBairro
+          ? `${lista.length} cliente(s) em ${filtroBairro} (total geral: ${dados.clientes.length})`
+          : `Total: ${dados.clientes.length} cliente(s)`;
+      }
+
       const tbody = document.getElementById('tabela-clientes');
       const sem = document.getElementById('sem-clientes');
       if (lista.length === 0) {
         tbody.innerHTML = '';
-        sem.classList.remove('hidden');
+        if (sem) sem.classList.remove('hidden');
+        const cards = document.getElementById('clientes-cards');
+        if (cards) cards.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-gray-500">Nenhum cliente encontrado.</div>';
         return;
       }
-      sem.classList.add('hidden');
+      if (sem) sem.classList.add('hidden');
       tbody.innerHTML = lista.map(c => {
         const comEle = dados.comClientes[c.id] || {};
         const totalG = Object.values(comEle).reduce((s,n) => s+n, 0);
@@ -942,6 +1245,7 @@
           document.getElementById('cliente-bairro').value = c.bairro||'';
           document.getElementById('cliente-cidade').value = c.cidade||'';
           document.getElementById('cliente-obs').value = c.obs||'';
+          document.getElementById('cliente-ano-galao').value = c.anoGalaoAtual || '';
           document.getElementById('modal-cliente-titulo').textContent = 'Editar Cliente';
         }
       }
@@ -963,6 +1267,7 @@
         bairro: document.getElementById('cliente-bairro').value.trim(),
         cidade: document.getElementById('cliente-cidade').value.trim(),
         obs: document.getElementById('cliente-obs').value.trim(),
+        anoGalaoAtual: document.getElementById('cliente-ano-galao').value || null,
         criadoEm: id ? (dados.clientes.find(c=>c.id===id)?.criadoEm || new Date().toISOString()) : new Date().toISOString()
       };
       if (id) {
@@ -1460,7 +1765,7 @@
       prepararFormVenda();
     }
 
-    document.getElementById('form-venda').addEventListener('submit', e => {
+    document.getElementById('form-venda').addEventListener('submit', async e => {
       e.preventDefault();
       const clienteId = document.getElementById('venda-cliente-id').value;
       if (!clienteId) return alert('Selecione um cliente');
@@ -1513,6 +1818,8 @@
       if (statusPag === 'pago') valorPago = valorTotal;
       if (statusPag === 'a_pagar') valorPago = 0;
 
+      // Se já pagou na hora (retirada), considera entregue; senão fica a entregar
+      const jaPago = statusPag === 'pago';
       const venda = {
         id: gerarId(),
         data: new Date().toISOString(),
@@ -1531,13 +1838,16 @@
         valorTotal,
         valorPago,
         statusPagamento: statusPag === 'pago' ? 'pago' : (valorPago > 0 ? 'parcial' : 'a_pagar'),
+        statusEntrega: jaPago ? 'entregue' : 'a_entregar',
+        dataEntrega: jaPago ? new Date().toISOString() : null,
+        formaPagamento: jaPago ? 'na_hora' : null,
         obs
       };
 
       dados.vendas.push(venda);
       dados.movimentacoes.push({
         id: gerarId(), data: new Date().toISOString(), tipo: 'saida', ano, qtd,
-        descricao: `Venda ${qtd} galão(ões) ano ${ano} → ${dados.clientes.find(c=>c.id===clienteId)?.nome||''} (${tipoOp})`
+        descricao: `Pedido ${qtd} galão(ões) ano ${ano} → ${dados.clientes.find(c=>c.id===clienteId)?.nome||''} (${tipoOp})`
       });
       if (vaziosDev > 0) {
         dados.movimentacoes.push({
@@ -1546,11 +1856,28 @@
         });
       }
 
+      // Atualiza ano do galão no cliente (o que ficou com ele)
+      const cli = dados.clientes.find(c => c.id === clienteId);
+      if (cli) {
+        cli.anoGalaoAtual = ano;
+      }
+
       salvarDados();
+      if (online && sb) {
+        await sbUpsertPedido(venda);
+        await sbSyncEstoque();
+        await sbSyncComClientes();
+        if (cli) {
+          await sb.from('clientes').update({ ano_galao_atual: ano }).eq('id', clienteId);
+        }
+      }
       limparFormVenda();
       atualizarDashboard();
 
-      if (confirm('Venda registrada!\n\nDeseja imprimir a notinha agora?')) {
+      const msg = jaPago
+        ? 'Pedido registrado e já marcado como entregue/pago.\n\nDeseja imprimir a notinha?'
+        : 'Pedido salvo!\n\nEle aparece em Pedidos / Entregas → A entregar.\nO dinheiro só entra no caixa depois de marcar a entrega e o pagamento.\n\nImprimir notinha agora?';
+      if (confirm(msg)) {
         imprimirNota(venda.id);
       }
     });
@@ -1666,36 +1993,90 @@
       }, 400);
     }
 
-    // A RECEBER
+    // PEDIDOS / ENTREGAS
+    let filtroPedidos = 'a_entregar';
+
+    function setFiltroPedidos(f) {
+      filtroPedidos = f;
+      ['entregar', 'receber', 'todos'].forEach(k => {
+        const btn = document.getElementById('filtro-ped-' + k);
+        if (!btn) return;
+        const ativo = (k === 'entregar' && f === 'a_entregar') || (k === 'receber' && f === 'a_receber') || (k === 'todos' && f === 'todos');
+        btn.className = ativo
+          ? 'px-3 py-2 rounded-lg text-sm font-medium bg-evg-blue text-white'
+          : 'px-3 py-2 rounded-lg text-sm font-medium bg-white border';
+      });
+      renderAReceber();
+    }
+
+    function statusEntregaDe(v) {
+      return v.statusEntrega || (v.statusPagamento === 'pago' ? 'entregue' : 'a_entregar');
+    }
+
     function renderAReceber() {
-      const abertas = dados.vendas.filter(v => v.statusPagamento !== 'pago');
-      const tbody = document.getElementById('tabela-a-receber');
-      const sem = document.getElementById('sem-a-receber');
-      if (abertas.length === 0) {
-        tbody.innerHTML = '';
+      const listaEl = document.getElementById('lista-pedidos');
+      const sem = document.getElementById('sem-pedidos');
+      if (!listaEl) return;
+
+      let lista = [...dados.vendas];
+      if (filtroPedidos === 'a_entregar') {
+        lista = lista.filter(v => statusEntregaDe(v) === 'a_entregar');
+      } else if (filtroPedidos === 'a_receber') {
+        lista = lista.filter(v => v.statusPagamento !== 'pago');
+      } else {
+        lista = lista.slice().sort((a,b) => new Date(b.data) - new Date(a.data)).slice(0, 40);
+      }
+      lista.sort((a,b) => new Date(b.data) - new Date(a.data));
+
+      if (lista.length === 0) {
+        listaEl.innerHTML = '';
         sem.classList.remove('hidden');
         return;
       }
       sem.classList.add('hidden');
-      abertas.sort((a,b) => new Date(b.data) - new Date(a.data));
-      tbody.innerHTML = abertas.map(v => {
+
+      listaEl.innerHTML = lista.map(v => {
         const cli = dados.clientes.find(c => c.id === v.clienteId);
         const restante = (Number(v.valorTotal)||0) - (Number(v.valorPago)||0);
-        const badge = v.statusPagamento === 'parcial' ? 'badge-parcial' : 'badge-aberto';
-        const label = v.statusPagamento === 'parcial' ? 'Parcial' : 'A pagar';
-        return `<tr class="hover:bg-gray-50">
-          <td class="px-4 py-3">${formatDate(v.data)}</td>
-          <td class="px-4 py-3 font-medium">${cli ? cli.nome : '—'}</td>
-          <td class="px-4 py-3">${formatMoney(v.valorTotal)}</td>
-          <td class="px-4 py-3">${formatMoney(v.valorPago)}</td>
-          <td class="px-4 py-3 font-medium text-red-600">${formatMoney(restante)}</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs ${badge}">${label}</span></td>
-          <td class="px-4 py-3 text-right whitespace-nowrap">
-            <button onclick="abrirModalPagar('${v.id}')" class="text-green-600 hover:underline text-sm">Receber</button>
-            <button onclick="imprimirNota('${v.id}')" class="text-evg-blue hover:underline text-sm ml-2">Nota</button>
-          </td>
-        </tr>`;
+        const stEnt = statusEntregaDe(v);
+        const end = cli ? [cli.endereco, cli.bairro, cli.cidade].filter(Boolean).join(' – ') : '';
+        const anoCli = cli && cli.anoGalaoAtual ? cli.anoGalaoAtual : '—';
+        return `<div class="bg-white rounded-xl shadow p-4">
+          <div class="flex flex-wrap justify-between gap-2">
+            <div>
+              <div class="font-semibold text-evg-blue text-base">${cli ? cli.nome : '—'}</div>
+              <div class="text-xs text-gray-500 mt-0.5">${formatDate(v.data)}</div>
+              ${end ? `<div class="text-sm text-gray-600 mt-1">${end}</div>` : ''}
+              <div class="text-sm mt-1">${v.qtdGaloes} galão(ões) ano ${v.anoGalao} • ${v.tipoOp === 'entrega' ? 'Entrega' : 'Retirada'}
+                ${v.tipoOp === 'entrega' ? ' (' + nomeEntregador(v.entregadorId) + ')' : ''}
+              </div>
+              <div class="text-xs text-gray-500 mt-1">Galão atual do cliente: <strong>${anoCli}</strong> → deixando <strong>${v.anoGalao}</strong></div>
+            </div>
+            <div class="text-right">
+              <div class="font-bold">${formatMoney(v.valorTotal)}</div>
+              <div class="text-xs mt-1 ${stEnt === 'entregue' ? 'text-green-600' : 'text-amber-600'}">${stEnt === 'entregue' ? 'Entregue' : 'A entregar'}</div>
+              <div class="text-xs ${v.statusPagamento === 'pago' ? 'text-green-600' : 'text-red-600'}">${v.statusPagamento === 'pago' ? 'Pago' : (restante > 0 ? 'A receber ' + formatMoney(restante) : 'A receber')}</div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-3">
+            ${stEnt === 'a_entregar' ? `<button type="button" onclick="abrirModalEntregar('${v.id}')" class="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded-lg font-medium">Marcar entrega + pagamento</button>` : ''}
+            ${v.statusPagamento !== 'pago' && stEnt === 'entregue' ? `<button type="button" onclick="abrirModalPagar('${v.id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-sm px-3 py-2 rounded-lg">Receber pagamento</button>` : ''}
+            <button type="button" onclick="imprimirNota('${v.id}')" class="border text-sm px-3 py-2 rounded-lg text-evg-blue">Nota</button>
+          </div>
+        </div>`;
       }).join('');
+    }
+
+    function abrirModalEntregar(vendaId) {
+      const v = dados.vendas.find(x => x.id === vendaId);
+      if (!v) return;
+      document.getElementById('modal-pagar').classList.remove('hidden');
+      document.getElementById('pagar-venda-id').value = vendaId;
+      document.getElementById('pagar-valor').value = (Number(v.valorTotal) - Number(v.valorPago || 0)).toFixed(2);
+      const titulo = document.querySelector('#modal-pagar h2');
+      if (titulo) titulo.textContent = 'Entrega + pagamento';
+      // marca que é entrega completa
+      document.getElementById('pagar-venda-id').dataset.modo = 'entregar';
     }
 
     function abrirModalPagar(vendaId) {
@@ -1703,14 +2084,18 @@
       if (!v) return;
       document.getElementById('modal-pagar').classList.remove('hidden');
       document.getElementById('pagar-venda-id').value = vendaId;
+      document.getElementById('pagar-venda-id').dataset.modo = 'receber';
       const restante = (Number(v.valorTotal)||0) - (Number(v.valorPago)||0);
       document.getElementById('pagar-valor').value = restante.toFixed(2);
+      const titulo = document.querySelector('#modal-pagar h2');
+      if (titulo) titulo.textContent = 'Registrar pagamento';
     }
     function fecharModalPagar() { document.getElementById('modal-pagar').classList.add('hidden'); }
 
-    document.getElementById('form-pagar').addEventListener('submit', e => {
+    document.getElementById('form-pagar').addEventListener('submit', async e => {
       e.preventDefault();
       const id = document.getElementById('pagar-venda-id').value;
+      const modo = document.getElementById('pagar-venda-id').dataset.modo || 'receber';
       const valor = parseFloat(document.getElementById('pagar-valor').value) || 0;
       const v = dados.vendas.find(x => x.id === id);
       if (!v) return;
@@ -1718,12 +2103,27 @@
       if (v.valorPago >= v.valorTotal) {
         v.valorPago = v.valorTotal;
         v.statusPagamento = 'pago';
-      } else v.statusPagamento = 'parcial';
+      } else if (v.valorPago > 0) {
+        v.statusPagamento = 'parcial';
+      } else {
+        v.statusPagamento = 'a_pagar';
+      }
+      if (modo === 'entregar') {
+        v.statusEntrega = 'entregue';
+        v.dataEntrega = new Date().toISOString();
+        const cli = dados.clientes.find(c => c.id === v.clienteId);
+        if (cli && v.anoGalao) cli.anoGalaoAtual = v.anoGalao;
+      }
       salvarDados();
+      if (online && sb) {
+        await sbUpsertPedido(v);
+        const cli = dados.clientes.find(c => c.id === v.clienteId);
+        if (cli && v.anoGalao) await sb.from('clientes').update({ ano_galao_atual: v.anoGalao }).eq('id', v.clienteId);
+      }
       fecharModalPagar();
       renderAReceber();
       atualizarDashboard();
-      alert('Pagamento registrado!');
+      alert(modo === 'entregar' ? 'Entrega registrada!' : 'Pagamento registrado!');
     });
 
     // RELATÓRIOS
@@ -1803,27 +2203,89 @@
       const cont = document.getElementById('rel-detalhe');
       if (vendasPeriodo.length === 0) {
         cont.innerHTML = '<p class="text-gray-400">Nenhuma venda neste período.</p>';
-        return;
-      }
-      vendasPeriodo.sort((a,b) => new Date(b.data) - new Date(a.data));
-      cont.innerHTML = vendasPeriodo.map(v => {
-        const cli = dados.clientes.find(c => c.id === v.clienteId);
-        return `<div class="flex justify-between items-start py-2 border-b last:border-0 gap-2">
-          <div class="min-w-0">
-            <div class="font-medium">${cli ? cli.nome : '—'}</div>
-            <div class="text-xs text-gray-500">
-              ${formatDate(v.data)} • ${v.qtdGaloes} galão(ões) ano ${v.anoGalao}
-              • ${v.tipoOp === 'entrega' ? 'Entrega (' + nomeEntregador(v.entregadorId) + ')' : 'Retirada'}
-              ${v.vaziosDevolvidos ? ' • ' + v.vaziosDevolvidos + ' vazios devolvidos' : ''}
+      } else {
+        vendasPeriodo.sort((a,b) => new Date(b.data) - new Date(a.data));
+        cont.innerHTML = vendasPeriodo.map(v => {
+          const cli = dados.clientes.find(c => c.id === v.clienteId);
+          return `<div class="flex justify-between items-start py-2 border-b last:border-0 gap-2">
+            <div class="min-w-0">
+              <div class="font-medium">${cli ? cli.nome : '—'}</div>
+              <div class="text-xs text-gray-500">
+                ${formatDate(v.data)} • ${v.qtdGaloes} galão(ões) ano ${v.anoGalao}
+                • ${v.tipoOp === 'entrega' ? 'Entrega (' + nomeEntregador(v.entregadorId) + ')' : 'Retirada'}
+                ${v.vaziosDevolvidos ? ' • ' + v.vaziosDevolvidos + ' vazios devolvidos' : ''}
+              </div>
             </div>
-          </div>
-          <div class="text-right shrink-0">
-            <div class="font-medium">${formatMoney(v.valorTotal)}</div>
-            <div class="text-xs ${v.statusPagamento === 'pago' ? 'text-green-600' : 'text-red-600'}">${v.statusPagamento === 'pago' ? 'Pago' : 'Em aberto'}</div>
-            <button type="button" onclick="imprimirNota('${v.id}')" class="text-xs text-evg-blue hover:underline mt-0.5">Imprimir nota</button>
-          </div>
-        </div>`;
-      }).join('');
+            <div class="text-right shrink-0">
+              <div class="font-medium">${formatMoney(v.valorTotal)}</div>
+              <div class="text-xs ${v.statusPagamento === 'pago' ? 'text-green-600' : 'text-red-600'}">${v.statusPagamento === 'pago' ? 'Pago' : 'Em aberto'}</div>
+              <button type="button" onclick="imprimirNota('${v.id}')" class="text-xs text-evg-blue hover:underline mt-0.5">Imprimir nota</button>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // Clientes por bairro
+      const contB = document.getElementById('rel-bairros');
+      if (contB) {
+        const map = {};
+        dados.clientes.forEach(c => {
+          const b = (c.bairro || '').trim() || '(sem bairro)';
+          map[b] = (map[b] || 0) + 1;
+        });
+        const entries = Object.entries(map).sort((a,b) => b[1] - a[1]);
+        contB.innerHTML = entries.length
+          ? `<p class="mb-2 text-gray-600">Total geral: <strong>${dados.clientes.length}</strong> clientes</p>` +
+            entries.map(([b, n]) => `<div class="flex justify-between py-1 border-b last:border-0"><span>${b}</span><span class="font-medium">${n}</span></div>`).join('')
+          : '<p class="text-gray-400">Nenhum cliente cadastrado.</p>';
+      }
+
+      renderReativar();
+    }
+
+    function renderReativar() {
+      const cont = document.getElementById('rel-reativar');
+      if (!cont) return;
+      const dias = parseInt(document.getElementById('rel-dias-reativar')?.value, 10) || 7;
+      const agora = new Date();
+      const limite = new Date(agora);
+      limite.setDate(limite.getDate() - dias);
+      limite.setHours(0,0,0,0);
+
+      // última compra por cliente (só entregues)
+      const ultima = {};
+      dados.vendas.forEach(v => {
+        const st = v.statusEntrega || (v.statusPagamento === 'pago' ? 'entregue' : 'a_entregar');
+        if (st !== 'entregue') return;
+        const d = new Date(v.dataEntrega || v.data);
+        if (!ultima[v.clienteId] || d > ultima[v.clienteId]) ultima[v.clienteId] = d;
+      });
+
+      const lista = [];
+      Object.keys(ultima).forEach(cid => {
+        const d = ultima[cid];
+        // comprou há exatamente cerca de X dias: última compra no dia (hoje - X) ou antes? 
+        // User wants: who bought X days ago (cycle). Show whose last purchase was >= X days ago
+        const diffDias = Math.floor((agora - d) / (1000*60*60*24));
+        if (diffDias >= dias) {
+          const cli = dados.clientes.find(c => c.id === cid);
+          if (cli) lista.push({ cli, diffDias, data: d });
+        }
+      });
+      lista.sort((a,b) => b.diffDias - a.diffDias);
+
+      cont.innerHTML = lista.length
+        ? `<p class="text-gray-600 mb-2">${lista.length} cliente(s) sem compra há pelo menos ${dias} dia(s)</p>` +
+          lista.map(item => `
+            <div class="flex justify-between py-2 border-b last:border-0">
+              <div>
+                <div class="font-medium">${item.cli.nome}</div>
+                <div class="text-xs text-gray-500">${item.cli.whatsapp || ''} ${item.cli.bairro ? '• ' + item.cli.bairro : ''}</div>
+              </div>
+              <div class="text-right text-xs text-amber-700">há ${item.diffDias} dia(s)<br>${item.data.toLocaleDateString('pt-BR')}</div>
+            </div>
+          `).join('')
+        : `<p class="text-gray-400">Nenhum cliente com última compra há ${dias}+ dias (ainda pouca história).</p>`;
     }
 
     // FUNCIONÁRIOS
@@ -1851,39 +2313,67 @@
       document.getElementById('modal-funcionario').classList.remove('hidden');
       document.getElementById('form-funcionario').reset();
       document.getElementById('func-id').value = '';
-      document.getElementById('modal-func-titulo').textContent = 'Novo Funcionário';
+      document.getElementById('modal-func-titulo').textContent = 'Novo entregador (nome + PIN)';
       if (id) {
         const f = dados.funcionarios.find(x => x.id === id);
         if (f) {
           document.getElementById('func-id').value = f.id;
           document.getElementById('func-nome').value = f.nome;
-          document.getElementById('modal-func-titulo').textContent = 'Editar Funcionário';
+          document.getElementById('func-pin').value = f.pin || '';
+          document.getElementById('modal-func-titulo').textContent = 'Editar entregador';
         }
       }
     }
     function fecharModalFuncionario() { document.getElementById('modal-funcionario').classList.add('hidden'); }
     function editarFuncionario(id) { abrirModalFuncionario(id); }
 
-    document.getElementById('form-funcionario').addEventListener('submit', e => {
+    document.getElementById('form-funcionario').addEventListener('submit', async e => {
       e.preventDefault();
+      if (!isAdmin()) return alert('Só o dono cadastra entregador.');
       const id = document.getElementById('func-id').value;
       const nome = document.getElementById('func-nome').value.trim();
-      if (!nome) return;
-      if (id) {
-        const idx = dados.funcionarios.findIndex(f => f.id === id);
-        if (idx >= 0) dados.funcionarios[idx].nome = nome;
+      const pin = document.getElementById('func-pin').value.trim();
+      if (!nome || !pin) return alert('Nome e PIN são obrigatórios');
+
+      if (online && sb) {
+        if (id) {
+          const { error } = await sb.from('usuarios').update({ nome, pin, role: 'entregador', ativo: true }).eq('id', id);
+          if (error) return alert('Erro: ' + error.message);
+        } else {
+          const { error } = await sb.from('usuarios').insert({ nome, pin, role: 'entregador', ativo: true });
+          if (error) return alert('Erro: ' + error.message);
+        }
+        await carregarDados();
       } else {
-        dados.funcionarios.push({ id: gerarId(), nome });
+        if (id) {
+          const idx = dados.funcionarios.findIndex(f => f.id === id);
+          if (idx >= 0) dados.funcionarios[idx] = { ...dados.funcionarios[idx], nome, pin };
+          const uidx = (dados.usuarios || []).findIndex(u => u.id === id);
+          if (uidx >= 0) dados.usuarios[uidx] = { ...dados.usuarios[uidx], nome, pin };
+        } else {
+          const novo = { id: gerarId(), nome, pin, role: 'entregador', ativo: true };
+          dados.funcionarios.push(novo);
+          if (!dados.usuarios) dados.usuarios = [];
+          dados.usuarios.push(novo);
+        }
+        salvarDados();
       }
-      salvarDados();
       fecharModalFuncionario();
       renderFuncionarios();
+      alert('Acesso do entregador salvo. Ele entra com nome + PIN.');
     });
 
-    function excluirFuncionario(id) {
-      if (!confirm('Excluir este funcionário?')) return;
-      dados.funcionarios = dados.funcionarios.filter(f => f.id !== id);
-      salvarDados();
+    async function excluirFuncionario(id) {
+      if (!isAdmin()) return;
+      if (!confirm('Excluir este entregador?')) return;
+      if (online && sb) {
+        await sb.from('usuarios').update({ ativo: false }).eq('id', id);
+        await carregarDados();
+      } else {
+        dados.funcionarios = dados.funcionarios.filter(f => f.id !== id);
+        dados.usuarios = (dados.usuarios || []).filter(u => u.id !== id);
+        salvarDados();
+      }
       renderFuncionarios();
     }
 
@@ -1929,8 +2419,28 @@
     }
 
     // INIT
-    carregarDados();
-    showPage('dashboard');
+    (async function initApp() {
+      const sess = sessionStorage.getItem(SESSION_KEY);
+      if (sess) {
+        try {
+          usuarioAtual = JSON.parse(sess);
+          document.getElementById('tela-login').classList.add('hidden');
+          document.getElementById('app').classList.remove('hidden');
+          aplicarPermissoes();
+          await carregarDados();
+          showPage(isAdmin() ? 'dashboard' : 'a-receber');
+          return;
+        } catch (e) {}
+      }
+      // fica na tela de login
+      document.getElementById('tela-login').classList.remove('hidden');
+      document.getElementById('app').classList.add('hidden');
+    })();
+
+    // Enter no PIN faz login
+    document.getElementById('login-pin')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') fazerLogin();
+    });
   </script>
 
   <!-- Navegação inferior (celular) -->
@@ -1941,15 +2451,15 @@
     </button>
     <button type="button" onclick="showPage('nova-venda')" data-nav="nova-venda" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
       <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">🚚</span>
-      Venda
+      Pedido
+    </button>
+    <button type="button" onclick="showPage('a-receber')" data-nav="a-receber" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
+      <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">📋</span>
+      Entregas
     </button>
     <button type="button" onclick="showPage('clientes')" data-nav="clientes" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
       <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">👥</span>
       Clientes
-    </button>
-    <button type="button" onclick="showPage('estoque')" data-nav="estoque" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
-      <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">📦</span>
-      Estoque
     </button>
     <button type="button" onclick="abrirMenuMobile()" class="bottom-nav-btn flex-1 flex flex-col items-center justify-center py-2 text-gray-500 text-[11px] gap-0.5">
       <span class="nav-icon w-9 h-9 rounded-full flex items-center justify-center text-lg">☰</span>
