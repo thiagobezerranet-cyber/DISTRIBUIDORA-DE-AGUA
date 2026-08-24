@@ -1280,33 +1280,61 @@
     }
     function editarCliente(id) { abrirModalCliente(id); }
 
-    document.getElementById('form-cliente').addEventListener('submit', e => {
+    document.getElementById('form-cliente').addEventListener('submit', async e => {
       e.preventDefault();
       const id = document.getElementById('cliente-id').value;
-      const obj = {
-        id: id || gerarId(),
-        nome: document.getElementById('cliente-nome').value.trim(),
-        whatsapp: document.getElementById('cliente-whatsapp').value.trim(),
-        endereco: document.getElementById('cliente-endereco').value.trim(),
-        bairro: document.getElementById('cliente-bairro').value.trim(),
-        cidade: document.getElementById('cliente-cidade').value.trim(),
-        obs: document.getElementById('cliente-obs').value.trim(),
-        anoGalaoAtual: document.getElementById('cliente-ano-galao').value || null,
-        criadoEm: id ? (dados.clientes.find(c=>c.id===id)?.criadoEm || new Date().toISOString()) : new Date().toISOString()
+      const nome = document.getElementById('cliente-nome').value.trim();
+      if (!nome) return alert('Informe o nome do cliente');
+
+      const row = {
+        nome,
+        whatsapp: document.getElementById('cliente-whatsapp').value.trim() || null,
+        endereco: document.getElementById('cliente-endereco').value.trim() || null,
+        bairro: document.getElementById('cliente-bairro').value.trim() || null,
+        cidade: document.getElementById('cliente-cidade').value.trim() || null,
+        obs: document.getElementById('cliente-obs').value.trim() || null,
+        ano_galao_atual: document.getElementById('cliente-ano-galao').value || null
       };
-      if (id) {
-        const idx = dados.clientes.findIndex(c => c.id === id);
-        if (idx >= 0) dados.clientes[idx] = obj;
+
+      let objId = id;
+
+      if (online && sb) {
+        if (id) {
+          const { error } = await sb.from('clientes').update(row).eq('id', id);
+          if (error) return alert('Erro ao salvar cliente: ' + error.message);
+        } else {
+          const { data, error } = await sb.from('clientes').insert(row).select('id, criado_em').single();
+          if (error) return alert('Erro ao salvar cliente: ' + error.message);
+          objId = data.id;
+        }
+        await carregarDados();
       } else {
-        dados.clientes.push(obj);
+        const obj = {
+          id: id || gerarId(),
+          nome: row.nome,
+          whatsapp: row.whatsapp || '',
+          endereco: row.endereco || '',
+          bairro: row.bairro || '',
+          cidade: row.cidade || '',
+          obs: row.obs || '',
+          anoGalaoAtual: row.ano_galao_atual,
+          criadoEm: id ? (dados.clientes.find(c=>c.id===id)?.criadoEm || new Date().toISOString()) : new Date().toISOString()
+        };
+        objId = obj.id;
+        if (id) {
+          const idx = dados.clientes.findIndex(c => c.id === id);
+          if (idx >= 0) dados.clientes[idx] = obj;
+        } else {
+          dados.clientes.push(obj);
+        }
+        salvarDados();
       }
-      salvarDados();
+
       fecharModalCliente();
 
-      // Se cadastrou a partir da tela de venda, já seleciona o cliente
       if (cadastrandoNaVenda && !id) {
         cadastrandoNaVenda = false;
-        selecionarClienteVenda(obj.id);
+        selecionarClienteVenda(objId);
       }
 
       if (document.getElementById('page-clientes') && !document.getElementById('page-clientes').classList.contains('hidden')) {
@@ -1315,11 +1343,18 @@
       atualizarDashboard();
     });
 
-    function excluirCliente(id) {
+    async function excluirCliente(id) {
       if (!confirm('Excluir este cliente?')) return;
-      dados.clientes = dados.clientes.filter(c => c.id !== id);
-      delete dados.comClientes[id];
-      salvarDados();
+      if (online && sb) {
+        const { error } = await sb.from('clientes').delete().eq('id', id);
+        if (error) return alert('Erro ao excluir: ' + error.message);
+        await sb.from('com_clientes').delete().eq('cliente_id', id);
+        await carregarDados();
+      } else {
+        dados.clientes = dados.clientes.filter(c => c.id !== id);
+        delete dados.comClientes[id];
+        salvarDados();
+      }
       renderClientes();
       atualizarDashboard();
     }
@@ -1476,7 +1511,7 @@
     }
     function fecharModalEntrada() { document.getElementById('modal-entrada').classList.add('hidden'); }
 
-    document.getElementById('form-entrada').addEventListener('submit', e => {
+    document.getElementById('form-entrada').addEventListener('submit', async e => {
       e.preventDefault();
       const tipo = document.getElementById('entrada-tipo').value;
       const ano = String(document.getElementById('entrada-ano').value);
@@ -1496,8 +1531,15 @@
         desc = `+${qtd} vazios novos (ano ${ano})`;
       }
       if (obs) desc += ' • ' + obs;
-      dados.movimentacoes.push({ id: gerarId(), data: new Date().toISOString(), tipo, ano, qtd, descricao: desc });
+      const mov = { id: gerarId(), data: new Date().toISOString(), tipo, ano, qtd, descricao: desc };
+      dados.movimentacoes.push(mov);
       salvarDados();
+      if (online && sb) {
+        await sbSyncEstoque();
+        await sb.from('movimentacoes').insert({
+          id: mov.id, data: mov.data, tipo: mov.tipo, ano: mov.ano, qtd: mov.qtd, descricao: mov.descricao
+        });
+      }
       fecharModalEntrada();
       renderEstoque();
       atualizarDashboard();
@@ -1514,7 +1556,7 @@
     }
     function fecharModalAjustar() { document.getElementById('modal-ajustar-estoque').classList.add('hidden'); }
 
-    document.getElementById('form-ajustar').addEventListener('submit', e => {
+    document.getElementById('form-ajustar').addEventListener('submit', async e => {
       e.preventDefault();
       const ano = document.getElementById('ajustar-ano').value;
       const cheios = parseInt(document.getElementById('ajustar-cheios').value, 10) || 0;
@@ -1522,26 +1564,40 @@
       garantirAnoEstoque(ano);
       dados.estoque[ano].cheios = cheios;
       dados.estoque[ano].vazios = vazios;
-      dados.movimentacoes.push({
+      const mov = {
         id: gerarId(), data: new Date().toISOString(), tipo: 'ajuste', ano,
         descricao: `Ajuste ano ${ano}: ${cheios} cheios, ${vazios} vazios`
-      });
+      };
+      dados.movimentacoes.push(mov);
       salvarDados();
+      if (online && sb) {
+        await sbSyncEstoque();
+        await sb.from('movimentacoes').insert({
+          id: mov.id, data: mov.data, tipo: mov.tipo, ano: mov.ano, qtd: 0, descricao: mov.descricao
+        });
+      }
       fecharModalAjustar();
       renderEstoque();
       atualizarDashboard();
       alert('Estoque ajustado!');
     });
 
-    function excluirAnoEstoque() {
+    async function excluirAnoEstoque() {
       const ano = document.getElementById('ajustar-ano').value;
       if (!confirm(`Excluir completamente o ano ${ano} do estoque?\n(Isso não remove os galões que estão com clientes.)`)) return;
       delete dados.estoque[ano];
-      dados.movimentacoes.push({
+      const mov = {
         id: gerarId(), data: new Date().toISOString(), tipo: 'exclusao', ano,
         descricao: `Excluído estoque do ano ${ano}`
-      });
+      };
+      dados.movimentacoes.push(mov);
       salvarDados();
+      if (online && sb) {
+        await sb.from('estoque').delete().eq('ano', ano);
+        await sb.from('movimentacoes').insert({
+          id: mov.id, data: mov.data, tipo: mov.tipo, ano: mov.ano, qtd: 0, descricao: mov.descricao
+        });
+      }
       fecharModalAjustar();
       renderEstoque();
       atualizarDashboard();
@@ -2402,14 +2458,22 @@
     }
 
     // CONFIG
-    document.getElementById('form-config').addEventListener('submit', e => {
+    document.getElementById('form-config').addEventListener('submit', async e => {
       e.preventDefault();
       dados.config.precoGalao = parseFloat(document.getElementById('config-preco-galao').value) || 15;
       dados.config.taxaEntrega = parseFloat(document.getElementById('config-taxa-entrega').value) || 4;
-      // atualiza produto galão também
       const g = dados.produtos.find(p => p.tipo === 'galao');
       if (g) g.preco = dados.config.precoGalao;
       salvarDados();
+      if (online && sb) {
+        const { error } = await sb.from('config').upsert({
+          id: 1,
+          preco_galao: dados.config.precoGalao,
+          taxa_entrega: dados.config.taxaEntrega,
+          updated_at: new Date().toISOString()
+        });
+        if (error) return alert('Erro ao salvar config: ' + error.message);
+      }
       alert('Configurações salvas!');
     });
 
