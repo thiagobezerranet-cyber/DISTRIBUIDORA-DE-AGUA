@@ -336,7 +336,8 @@
                   <tr>
                     <th class="text-left px-4 py-3">Nome</th>
                     <th class="text-left px-4 py-3">WhatsApp</th>
-                    <th class="text-left px-4 py-3">Endereço</th>
+                    <th class="text-left px-4 py-3">Endereço / Bairro</th>
+                    <th class="text-left px-4 py-3">Última compra</th>
                     <th class="text-left px-4 py-3">Galões com ele</th>
                     <th class="text-right px-4 py-3">Ações</th>
                   </tr>
@@ -445,6 +446,12 @@
           </div>
 
           <div class="bg-white rounded-xl shadow p-5 mb-6">
+            <h2 class="font-semibold text-evg-blue mb-3">Comparativo mensal (últimos 6 meses)</h2>
+            <p class="text-xs text-gray-500 mb-3">Fechamento por mês — valor recebido (entregue + pago)</p>
+            <div id="rel-grafico-mensal" class="space-y-2"></div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-5 mb-6">
             <h2 class="font-semibold text-evg-blue mb-3">Entregas por pessoa (taxa de entrega)</h2>
             <div id="rel-entregas-pessoa" class="space-y-2 text-sm"></div>
           </div>
@@ -546,8 +553,8 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-sm font-medium mb-1">Bairro</label>
-            <input type="text" id="cliente-bairro" class="w-full px-3 py-2 border rounded-lg text-sm">
+            <label class="block text-sm font-medium mb-1">Bairro *</label>
+            <input type="text" id="cliente-bairro" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Obrigatório">
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">Cidade</label>
@@ -1214,10 +1221,12 @@
         const comEle = dados.comClientes[c.id] || {};
         const totalG = Object.values(comEle).reduce((s,n) => s+n, 0);
         const det = Object.entries(comEle).filter(([,n]) => n>0).map(([a,n]) => n+'×'+a).join(', ') || '—';
+        const ult = ultimaCompraCliente(c.id);
         return `<tr class="hover:bg-gray-50">
           <td class="px-4 py-3 font-medium">${c.nome||'—'}</td>
           <td class="px-4 py-3">${c.whatsapp||'—'}</td>
           <td class="px-4 py-3">${[c.endereco,c.bairro,c.cidade].filter(Boolean).join(' – ')||'—'}</td>
+          <td class="px-4 py-3 text-sm">${ult || '—'}</td>
           <td class="px-4 py-3">${totalG > 0 ? totalG + ' (' + det + ')' : '—'}</td>
           <td class="px-4 py-3 text-right whitespace-nowrap">
             ${totalG > 0 ? `<button onclick="abrirModalDevolucao('${c.id}')" class="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded mr-2">Devolveu vazio</button>` : ''}
@@ -1238,10 +1247,12 @@
             const totalG = Object.values(comEle).reduce((s,n) => s+n, 0);
             const det = Object.entries(comEle).filter(([,n]) => n>0).map(([a,n]) => n+'×'+a).join(', ');
             const end = [c.endereco, c.bairro, c.cidade].filter(Boolean).join(' – ');
+            const ult = ultimaCompraCliente(c.id);
             return `<div class="bg-white rounded-xl shadow p-4">
               <div class="font-semibold text-evg-blue text-base">${c.nome||'—'}</div>
               <div class="text-sm text-gray-600 mt-1">${c.whatsapp||''}</div>
               ${end ? `<div class="text-xs text-gray-500 mt-1">${end}</div>` : ''}
+              <div class="text-xs text-gray-500 mt-1">Última compra: <strong>${ult || '—'}</strong></div>
               ${totalG > 0 ? `<div class="text-sm text-amber-700 mt-2">Galões com ele: ${totalG} (${det})</div>` : ''}
               <div class="flex flex-wrap gap-2 mt-3">
                 ${totalG > 0 ? `<button onclick="abrirModalDevolucao('${c.id}')" class="bg-green-600 text-white text-sm px-3 py-2 rounded-lg">Devolveu vazio</button>` : ''}
@@ -1252,6 +1263,19 @@
           }).join('');
         }
       }
+    }
+
+    function ultimaCompraCliente(clienteId) {
+      let ultima = null;
+      (dados.vendas || []).forEach(v => {
+        if (v.clienteId !== clienteId) return;
+        const st = v.statusEntrega || (v.statusPagamento === 'pago' ? 'entregue' : 'a_entregar');
+        // considera qualquer pedido (entregue ou não) para histórico; prioriza data entrega se houver
+        const d = new Date(v.dataEntrega || v.data);
+        if (!ultima || d > ultima) ultima = d;
+      });
+      if (!ultima) return null;
+      return ultima.toLocaleDateString('pt-BR');
     }
 
     function abrirModalCliente(id=null) {
@@ -1284,13 +1308,15 @@
       e.preventDefault();
       const id = document.getElementById('cliente-id').value;
       const nome = document.getElementById('cliente-nome').value.trim();
+      const bairro = document.getElementById('cliente-bairro').value.trim();
       if (!nome) return alert('Informe o nome do cliente');
+      if (!bairro) return alert('Informe o bairro (obrigatório para busca por região)');
 
       const row = {
         nome,
         whatsapp: document.getElementById('cliente-whatsapp').value.trim() || null,
         endereco: document.getElementById('cliente-endereco').value.trim() || null,
-        bairro: document.getElementById('cliente-bairro').value.trim() || null,
+        bairro: bairro,
         cidade: document.getElementById('cliente-cidade').value.trim() || null,
         obs: document.getElementById('cliente-obs').value.trim() || null,
         ano_galao_atual: document.getElementById('cliente-ano-galao').value || null
@@ -1999,9 +2025,40 @@
       const statusLabel = v.statusPagamento === 'pago' ? 'PAGO' : (v.statusPagamento === 'parcial' ? 'PARCIAL' : 'A PAGAR');
       const restante = (Number(v.valorTotal) || 0) - (Number(v.valorPago) || 0);
 
-      const w = window.open('', '_blank', 'width=360,height=600');
+      // Texto para WhatsApp
+      let itensTxt = `Galão 20L (ano ${v.anoGalao}) x ${v.qtdGaloes}: ${formatMoney((v.precoGalao || 0) * (v.qtdGaloes || 0))}`;
+      if (v.tipoOp === 'entrega' && (v.taxaEntrega || 0) > 0) {
+        itensTxt += `\nTaxa entrega x ${v.qtdGaloes}: ${formatMoney((v.taxaEntrega || 0) * (v.qtdGaloes || 0))}`;
+      }
+      const textoWa = [
+        '*COMPROVANTE – Água Galão 20L*',
+        `Data: ${formatDate(v.data)}`,
+        `Cliente: ${nomeCliente}`,
+        endCliente ? `Endereço: ${endCliente}` : null,
+        `Tipo: ${v.tipoOp === 'entrega' ? 'Entrega' : 'Retirada'}`,
+        '',
+        itensTxt,
+        '',
+        `*TOTAL: ${formatMoney(v.valorTotal)}*`,
+        `Pago: ${formatMoney(v.valorPago)}`,
+        restante > 0.009 ? `Restante: ${formatMoney(restante)}` : null,
+        `Status: ${statusLabel}`,
+        '',
+        'Obrigado pela preferência!'
+      ].filter(Boolean).join('\n');
+
+      const telLimpo = (telCliente || '').replace(/\D/g, '');
+      let waUrl = '';
+      if (telLimpo) {
+        const comPais = telLimpo.startsWith('55') ? telLimpo : '55' + telLimpo;
+        waUrl = 'https://wa.me/' + comPais + '?text=' + encodeURIComponent(textoWa);
+      } else {
+        waUrl = 'https://wa.me/?text=' + encodeURIComponent(textoWa);
+      }
+
+      const w = window.open('', '_blank', 'width=380,height=640');
       if (!w) {
-        alert('Permita pop-ups para imprimir a notinha.');
+        alert('Permita pop-ups para abrir a notinha.');
         return;
       }
       w.document.write(`
@@ -2009,16 +2066,21 @@
         <html lang="pt-BR">
         <head>
           <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
           <title>Notinha - ${nomeCliente}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; padding: 16px; max-width: 320px; margin: 0 auto; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; padding: 16px; max-width: 360px; margin: 0 auto; }
             h1 { font-size: 16px; text-align: center; margin-bottom: 4px; }
             .sub { text-align: center; font-size: 11px; color: #555; margin-bottom: 12px; }
             .linha { border-top: 1px dashed #999; margin: 10px 0; }
             table { width: 100%; border-collapse: collapse; }
             .total { font-size: 15px; font-weight: bold; }
             .rodape { text-align: center; font-size: 11px; color: #666; margin-top: 14px; }
+            .btn { display: block; width: 100%; padding: 12px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; text-align: center; text-decoration: none; }
+            .btn-wa { background: #25D366; color: #fff; font-weight: bold; }
+            .btn-print { background: #1e3a5f; color: #fff; }
+            .btn-close { background: #e5e7eb; color: #333; }
             @media print {
               body { padding: 0; }
               .no-print { display: none !important; }
@@ -2060,17 +2122,16 @@
             Obrigado pela preferência!<br>
             <span style="font-size:10px;">Gerado em ${new Date().toLocaleString('pt-BR')}</span>
           </div>
-          <div class="no-print" style="margin-top:20px; text-align:center;">
-            <button onclick="window.print()" style="padding:10px 20px; font-size:14px; cursor:pointer;">Imprimir</button>
-            <button onclick="window.close()" style="padding:10px 20px; font-size:14px; cursor:pointer; margin-left:8px;">Fechar</button>
+          <div class="no-print" style="margin-top:16px;">
+            <a class="btn btn-wa" href="${waUrl}" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+            <button class="btn btn-print" onclick="window.print()">Imprimir</button>
+            <button class="btn btn-close" onclick="window.close()">Fechar</button>
+            ${!telCliente ? '<p style="font-size:11px;color:#888;margin-top:8px;text-align:center;">Cliente sem WhatsApp cadastrado — o botão abre o WhatsApp para você escolher o contato.</p>' : ''}
           </div>
         </body>
         </html>
       `);
       w.document.close();
-      setTimeout(function() {
-        try { w.print(); } catch (e) {}
-      }, 400);
     }
 
     // PEDIDOS / ENTREGAS
@@ -2320,7 +2381,43 @@
           : '<p class="text-gray-400">Nenhum cliente cadastrado.</p>';
       }
 
+      renderGraficoMensal();
       renderReativar();
+    }
+
+    function renderGraficoMensal() {
+      const cont = document.getElementById('rel-grafico-mensal');
+      if (!cont) return;
+      const agora = new Date();
+      const meses = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        meses.push({ key, label, valor: 0, galoes: 0, qtd: 0 });
+      }
+      (dados.vendas || []).forEach(v => {
+        const st = v.statusEntrega || (v.statusPagamento === 'pago' ? 'entregue' : 'a_entregar');
+        if (st !== 'entregue') return;
+        const dataRef = v.dataEntrega || v.data;
+        const key = (dataRef || '').slice(0, 7);
+        const m = meses.find(x => x.key === key);
+        if (!m) return;
+        m.valor += Number(v.valorPago) || 0;
+        m.galoes += Number(v.qtdGaloes) || 0;
+        m.qtd += 1;
+      });
+      const max = Math.max(...meses.map(m => m.valor), 1);
+      cont.innerHTML = meses.map(m => {
+        const pct = Math.round((m.valor / max) * 100);
+        return `<div class="flex items-center gap-2 text-sm">
+          <div class="w-14 shrink-0 text-gray-600 capitalize">${m.label}</div>
+          <div class="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden relative">
+            <div class="bg-evg-blue h-full rounded-full transition-all" style="width:${pct}%"></div>
+            <span class="absolute inset-0 flex items-center px-2 text-xs font-medium ${pct > 35 ? 'text-white' : 'text-gray-700'}">${formatMoney(m.valor)} · ${m.galoes} gal.</span>
+          </div>
+        </div>`;
+      }).join('');
     }
 
     function renderReativar() {
