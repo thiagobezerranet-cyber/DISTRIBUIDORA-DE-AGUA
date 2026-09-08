@@ -60,7 +60,10 @@
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">Senha ou PIN</label>
-          <input type="password" id="login-pin" class="w-full px-4 py-3 border rounded-lg text-base" placeholder="Senha do e-mail ou PIN" autocomplete="current-password">
+          <div class="relative">
+            <input type="password" id="login-pin" class="w-full px-4 py-3 pr-12 border rounded-lg text-base" placeholder="Senha do e-mail ou PIN" autocomplete="current-password">
+            <button type="button" id="btn-toggle-senha" onclick="toggleSenhaLogin()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-evg-blue text-xl leading-none px-1" title="Mostrar senha" aria-label="Mostrar senha">👁</button>
+          </div>
         </div>
         <p id="login-erro" class="text-sm text-red-600 hidden"></p>
         <button type="button" onclick="fazerLogin()" class="w-full bg-evg-blue hover:bg-evg-dark text-white py-3 rounded-lg font-medium text-base">Entrar</button>
@@ -795,6 +798,19 @@
 
     // UID do dono no Auth da Supabase (e-mail já cadastrado)
     const DONO_AUTH_UID = '4dd45f80-3202-4e21-8581-35eed6b2e5d2';
+
+    function toggleSenhaLogin() {
+      const input = document.getElementById('login-pin');
+      const btn = document.getElementById('btn-toggle-senha');
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (btn) { btn.textContent = '🙈'; btn.title = 'Ocultar senha'; }
+      } else {
+        input.type = 'password';
+        if (btn) { btn.textContent = '👁'; btn.title = 'Mostrar senha'; }
+      }
+    }
 
     async function fazerLogin() {
       const nome = (document.getElementById('login-nome').value || '').trim();
