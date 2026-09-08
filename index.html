@@ -104,6 +104,9 @@
         <button onclick="showPage('relatorios')" data-page="relatorios" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
           <span>📋</span> Relatórios
         </button>
+        <button onclick="showPage('recuperar')" data-page="recuperar" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
+          <span>💰</span> Recuperar vendas
+        </button>
         <button onclick="showPage('funcionarios')" data-page="funcionarios" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm hover:bg-white/10 transition">
           <span>👷</span> Funcionários
         </button>
@@ -468,13 +471,49 @@
 
           <div class="bg-white rounded-xl shadow p-5">
             <h2 class="font-semibold text-evg-blue mb-3">Reativar clientes (última compra há X dias)</h2>
-            <p class="text-xs text-gray-500 mb-3">Escolha quantos dias desde a última compra para ver quem ligar.</p>
+            <p class="text-xs text-gray-500 mb-3">Filtro simples por dias sem comprar. Para análise inteligente por frequência individual, use <button type="button" onclick="showPage('recuperar')" class="text-evg-blue underline font-medium">Recuperar vendas</button>.</p>
             <div class="flex flex-wrap gap-2 mb-3">
               <input type="number" id="rel-dias-reativar" min="1" value="7" class="w-24 px-3 py-2 border rounded-lg text-sm">
               <button type="button" onclick="renderReativar()" class="bg-evg-blue text-white px-4 py-2 rounded-lg text-sm">Buscar</button>
             </div>
             <div id="rel-reativar" class="space-y-2 text-sm max-h-80 overflow-y-auto"></div>
           </div>
+        </div>
+
+        <!-- RECUPERAR VENDAS -->
+        <div id="page-recuperar" class="page hidden">
+          <h1 class="text-xl sm:text-2xl font-bold text-evg-blue mb-2">Clientes que deveriam comprar</h1>
+          <p class="text-sm text-gray-500 mb-4">Baseado na frequência real de compra de cada cliente (só vendas entregues).</p>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+              <div class="text-xs text-gray-500">Devem / muito atrasados</div>
+              <div class="text-2xl font-bold text-red-600 mt-1" id="rec-qtd-atrasados">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-amber-500">
+              <div class="text-xs text-gray-500">Valor potencial</div>
+              <div class="text-xl font-bold text-amber-600 mt-1" id="rec-valor-potencial">R$ 0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-700">
+              <div class="text-xs text-gray-500">Muito atrasados</div>
+              <div class="text-2xl font-bold text-red-700 mt-1" id="rec-qtd-muito">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-evg-blue">
+              <div class="text-xs text-gray-500">Ticket médio</div>
+              <div class="text-xl font-bold text-evg-blue mt-1" id="rec-ticket">R$ 0</div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mb-4">
+            <button type="button" onclick="setFiltroRecuperar('acao')" id="filtro-rec-acao" class="px-3 py-2 rounded-lg text-sm font-medium bg-evg-blue text-white">Para contatar</button>
+            <button type="button" onclick="setFiltroRecuperar('proximo')" id="filtro-rec-proximo" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Próximos</button>
+            <button type="button" onclick="setFiltroRecuperar('deveria')" id="filtro-rec-deveria" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Deveriam</button>
+            <button type="button" onclick="setFiltroRecuperar('muito')" id="filtro-rec-muito" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Muito atrasados</button>
+            <button type="button" onclick="setFiltroRecuperar('todos')" id="filtro-rec-todos" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Todos com histórico</button>
+          </div>
+
+          <div id="lista-recuperar" class="space-y-3"></div>
+          <div id="sem-recuperar" class="hidden bg-white rounded-xl shadow p-8 text-center text-gray-500">Nenhum cliente neste filtro. É preciso ter pelo menos 2 compras entregues por cliente.</div>
         </div>
 
         <!-- FUNCIONÁRIOS -->
@@ -1064,6 +1103,7 @@
       if (page === 'estoque') renderEstoque();
       if (page === 'a-receber') renderAReceber();
       if (page === 'relatorios') setPeriodoRelatorio(periodoAtual || 'hoje');
+      if (page === 'recuperar') renderRecuperar();
       if (page === 'funcionarios') renderFuncionarios();
       if (page === 'config') {
         document.getElementById('config-preco-galao').value = dados.config.precoGalao;
@@ -2425,9 +2465,6 @@
       if (!cont) return;
       const dias = parseInt(document.getElementById('rel-dias-reativar')?.value, 10) || 7;
       const agora = new Date();
-      const limite = new Date(agora);
-      limite.setDate(limite.getDate() - dias);
-      limite.setHours(0,0,0,0);
 
       // última compra por cliente (só entregues)
       const ultima = {};
@@ -2441,8 +2478,6 @@
       const lista = [];
       Object.keys(ultima).forEach(cid => {
         const d = ultima[cid];
-        // comprou há exatamente cerca de X dias: última compra no dia (hoje - X) ou antes? 
-        // User wants: who bought X days ago (cycle). Show whose last purchase was >= X days ago
         const diffDias = Math.floor((agora - d) / (1000*60*60*24));
         if (diffDias >= dias) {
           const cli = dados.clientes.find(c => c.id === cid);
@@ -2463,6 +2498,229 @@
             </div>
           `).join('')
         : `<p class="text-gray-400">Nenhum cliente com última compra há ${dias}+ dias (ainda pouca história).</p>`;
+    }
+
+    // ========== RECUPERAR VENDAS (frequência individual) ==========
+    const CONTATOS_KEY = 'agua_contatos_reativacao';
+    let filtroRecuperar = 'acao';
+
+    function carregarContatosReativacao() {
+      try {
+        return JSON.parse(localStorage.getItem(CONTATOS_KEY) || '{}');
+      } catch (e) { return {}; }
+    }
+
+    function salvarContatoReativacao(clienteId, status) {
+      const map = carregarContatosReativacao();
+      map[clienteId] = { status, data: new Date().toISOString() };
+      localStorage.setItem(CONTATOS_KEY, JSON.stringify(map));
+      renderRecuperar();
+    }
+
+    function vendasEntreguesCliente(clienteId) {
+      return (dados.vendas || [])
+        .filter(v => {
+          if (v.clienteId !== clienteId) return false;
+          const st = v.statusEntrega || (v.statusPagamento === 'pago' ? 'entregue' : 'a_entregar');
+          return st === 'entregue';
+        })
+        .map(v => ({
+          data: new Date(v.dataEntrega || v.data),
+          qtd: Number(v.qtdGaloes) || 0,
+          valor: Number(v.valorTotal) || 0
+        }))
+        .sort((a, b) => a.data - b.data);
+    }
+
+    function mediana(arr) {
+      if (!arr.length) return 0;
+      const s = [...arr].sort((a, b) => a - b);
+      const m = Math.floor(s.length / 2);
+      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+    }
+
+    function analisarFrequenciaClientes() {
+      const agora = new Date();
+      agora.setHours(12, 0, 0, 0);
+      const resultados = [];
+
+      (dados.clientes || []).forEach(cli => {
+        const compras = vendasEntreguesCliente(cli.id);
+        if (compras.length < 2) return;
+
+        const intervalos = [];
+        for (let i = 1; i < compras.length; i++) {
+          const dias = Math.round((compras[i].data - compras[i - 1].data) / (1000 * 60 * 60 * 24));
+          if (dias > 0) intervalos.push(dias);
+        }
+        if (!intervalos.length) return;
+
+        const media = intervalos.reduce((a, b) => a + b, 0) / intervalos.length;
+        const med = mediana(intervalos);
+        // Com 3+ compras usa média entre média e mediana para reduzir distorção
+        let freq = compras.length >= 3 ? (media * 0.4 + med * 0.6) : media;
+        freq = Math.max(1, Math.round(freq * 10) / 10);
+
+        const ultima = compras[compras.length - 1];
+        const diasDesde = Math.floor((agora - ultima.data) / (1000 * 60 * 60 * 24));
+        const atraso = Math.round((diasDesde - freq) * 10) / 10;
+        const mediaGaloes = compras.reduce((s, c) => s + c.qtd, 0) / compras.length;
+        const mediaValor = compras.reduce((s, c) => s + c.valor, 0) / compras.length;
+
+        let classe, classeLabel;
+        if (atraso < -Math.max(2, freq * 0.2)) {
+          classe = 'no_prazo';
+          classeLabel = '🟢 NO PRAZO';
+        } else if (atraso < 1) {
+          classe = 'proximo';
+          classeLabel = '🟡 PRÓXIMO';
+        } else if (atraso < freq) {
+          classe = 'deveria';
+          classeLabel = '🔴 DEVERIA COMPRAR';
+        } else {
+          classe = 'muito';
+          classeLabel = '🔴🔴 MUITO ATRASADO';
+        }
+
+        const confianca = compras.length >= 4 ? 'alta' : (compras.length >= 3 ? 'média' : 'baixa');
+        const potencial = Math.round(mediaValor * 100) / 100;
+
+        resultados.push({
+          cli,
+          freq,
+          diasDesde,
+          atraso,
+          mediaGaloes: Math.round(mediaGaloes * 10) / 10,
+          mediaValor: potencial,
+          potencial,
+          classe,
+          classeLabel,
+          confianca,
+          nCompras: compras.length,
+          ultimaData: ultima.data
+        });
+      });
+
+      // Prioridade: quem deve ser contatado, ordenado por potencial de receita
+      resultados.sort((a, b) => {
+        const peso = { muito: 3, deveria: 2, proximo: 1, no_prazo: 0 };
+        const pa = peso[a.classe] || 0;
+        const pb = peso[b.classe] || 0;
+        if (pa !== pb) return pb - pa;
+        return b.potencial - a.potencial;
+      });
+
+      return resultados;
+    }
+
+    function setFiltroRecuperar(f) {
+      filtroRecuperar = f;
+      ['acao', 'proximo', 'deveria', 'muito', 'todos'].forEach(k => {
+        const btn = document.getElementById('filtro-rec-' + k);
+        if (!btn) return;
+        btn.className = k === f
+          ? 'px-3 py-2 rounded-lg text-sm font-medium bg-evg-blue text-white'
+          : 'px-3 py-2 rounded-lg text-sm font-medium bg-white border';
+      });
+      renderRecuperar();
+    }
+
+    function renderRecuperar() {
+      const listaEl = document.getElementById('lista-recuperar');
+      const sem = document.getElementById('sem-recuperar');
+      if (!listaEl) return;
+
+      const todos = analisarFrequenciaClientes();
+      const contatos = carregarContatosReativacao();
+
+      const acao = todos.filter(x => x.classe === 'deveria' || x.classe === 'muito');
+      const muito = todos.filter(x => x.classe === 'muito');
+      const valorPot = acao.reduce((s, x) => s + x.potencial, 0);
+      const ticket = acao.length ? valorPot / acao.length : 0;
+
+      const elQ = document.getElementById('rec-qtd-atrasados');
+      const elV = document.getElementById('rec-valor-potencial');
+      const elM = document.getElementById('rec-qtd-muito');
+      const elT = document.getElementById('rec-ticket');
+      if (elQ) elQ.textContent = acao.length;
+      if (elV) elV.textContent = formatMoney(valorPot);
+      if (elM) elM.textContent = muito.length;
+      if (elT) elT.textContent = formatMoney(ticket);
+
+      let lista = todos;
+      if (filtroRecuperar === 'acao') lista = acao;
+      else if (filtroRecuperar === 'proximo') lista = todos.filter(x => x.classe === 'proximo');
+      else if (filtroRecuperar === 'deveria') lista = todos.filter(x => x.classe === 'deveria');
+      else if (filtroRecuperar === 'muito') lista = muito;
+      // todos = todos com histórico (inclui no prazo)
+
+      if (!lista.length) {
+        listaEl.innerHTML = '';
+        if (sem) sem.classList.remove('hidden');
+        return;
+      }
+      if (sem) sem.classList.add('hidden');
+
+      listaEl.innerHTML = lista.map(item => {
+        const c = item.cli;
+        const contato = contatos[c.id];
+        const atrasoTxt = item.atraso >= 1
+          ? `Atraso: <strong>${Math.round(item.atraso)} dia(s)</strong>`
+          : (item.atraso >= 0
+            ? 'No dia estimado'
+            : `Faltam ~${Math.abs(Math.round(item.atraso))} dia(s)`);
+        const confBadge = item.confianca === 'baixa'
+          ? '<span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">baixa confiança</span>'
+          : (item.confianca === 'média'
+            ? '<span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">confiança média</span>'
+            : '<span class="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">confiança alta</span>');
+
+        return `<div class="bg-white rounded-xl shadow p-4">
+          <div class="flex flex-wrap justify-between gap-2 items-start">
+            <div class="min-w-0">
+              <div class="font-semibold text-evg-blue text-base">${c.nome || '—'}</div>
+              <div class="text-xs mt-1">${item.classeLabel} ${confBadge}</div>
+              <div class="text-sm text-gray-600 mt-2 space-y-0.5">
+                <div>Última compra: há <strong>${item.diasDesde}</strong> dia(s) (${item.ultimaData.toLocaleDateString('pt-BR')})</div>
+                <div>Frequência habitual: <strong>${item.freq}</strong> dia(s)</div>
+                <div>${atrasoTxt}</div>
+                <div>Média: <strong>${item.mediaGaloes}</strong> galão(ões) · Valor médio: <strong>${formatMoney(item.mediaValor)}</strong></div>
+                <div class="text-amber-700 font-medium">Potencial: ${formatMoney(item.potencial)}</div>
+                ${c.whatsapp ? `<div>WhatsApp: ${c.whatsapp}</div>` : '<div class="text-gray-400">Sem WhatsApp</div>'}
+                ${c.bairro ? `<div class="text-xs text-gray-500">${c.bairro}</div>` : ''}
+                ${contato ? `<div class="text-xs text-gray-500 mt-1">Último contato: ${contato.status} (${new Date(contato.data).toLocaleDateString('pt-BR')})</div>` : ''}
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 shrink-0">
+              <button type="button" onclick="copiarMsgReativacao('${c.id}')" class="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded-lg">Copiar mensagem</button>
+              <select onchange="salvarContatoReativacao('${c.id}', this.value)" class="text-sm border rounded-lg px-2 py-2">
+                <option value="">Resultado do contato</option>
+                <option value="Contatado" ${contato && contato.status === 'Contatado' ? 'selected' : ''}>Contatado</option>
+                <option value="Pediu água" ${contato && contato.status === 'Pediu água' ? 'selected' : ''}>Pediu água</option>
+                <option value="Não respondeu" ${contato && contato.status === 'Não respondeu' ? 'selected' : ''}>Não respondeu</option>
+                <option value="Não precisa" ${contato && contato.status === 'Não precisa' ? 'selected' : ''}>Não precisa</option>
+                <option value="Número inválido" ${contato && contato.status === 'Número inválido' ? 'selected' : ''}>Número inválido</option>
+              </select>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function copiarMsgReativacao(clienteId) {
+      const cli = dados.clientes.find(c => c.id === clienteId);
+      if (!cli) return;
+      const primeiroNome = (cli.nome || 'cliente').trim().split(/\s+/)[0];
+      const msg = `Olá, ${primeiroNome}! Tudo bem? Passando para saber se vai precisar de água hoje. Se quiser, posso deixar seu pedido separado.`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(msg).then(() => {
+          alert('Mensagem copiada! Cole no WhatsApp.');
+        }).catch(() => {
+          prompt('Copie a mensagem:', msg);
+        });
+      } else {
+        prompt('Copie a mensagem:', msg);
+      }
     }
 
     // FUNCIONÁRIOS
