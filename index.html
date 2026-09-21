@@ -2708,7 +2708,7 @@
               </div>
             </div>
             <div class="flex flex-col gap-2 shrink-0">
-              <button type="button" onclick="copiarMsgReativacao('${c.id}')" class="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded-lg">Copiar mensagem</button>
+              <button type="button" onclick="abrirWhatsAppReativacao('${c.id}')" class="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-2 rounded-lg">${c.whatsapp ? 'WhatsApp' : 'Copiar mensagem'}</button>
               <select onchange="salvarContatoReativacao('${c.id}', this.value)" class="text-sm border rounded-lg px-2 py-2">
                 <option value="">Resultado do contato</option>
                 <option value="Contatado" ${contato && contato.status === 'Contatado' ? 'selected' : ''}>Contatado</option>
@@ -2723,19 +2723,27 @@
       }).join('');
     }
 
-    function copiarMsgReativacao(clienteId) {
+    function abrirWhatsAppReativacao(clienteId) {
       const cli = dados.clientes.find(c => c.id === clienteId);
       if (!cli) return;
       const primeiroNome = (cli.nome || 'cliente').trim().split(/\s+/)[0];
       const msg = `Olá, ${primeiroNome}! Tudo bem? Passando para saber se vai precisar de água hoje. Se quiser, posso deixar seu pedido separado.`;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(msg).then(() => {
-          alert('Mensagem copiada! Cole no WhatsApp.');
-        }).catch(() => {
-          prompt('Copie a mensagem:', msg);
-        });
+      const telLimpo = (cli.whatsapp || '').replace(/\D/g, '');
+      if (telLimpo) {
+        const comPais = telLimpo.startsWith('55') ? telLimpo : '55' + telLimpo;
+        const url = 'https://wa.me/' + comPais + '?text=' + encodeURIComponent(msg);
+        window.open(url, '_blank');
       } else {
-        prompt('Copie a mensagem:', msg);
+        // Sem número: copia a mensagem para colar no contato
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(msg).then(() => {
+            alert('Cliente sem WhatsApp cadastrado. Mensagem copiada — cole no contato desejado.');
+          }).catch(() => {
+            prompt('Copie a mensagem:', msg);
+          });
+        } else {
+          prompt('Copie a mensagem:', msg);
+        }
       }
     }
 
