@@ -1004,22 +1004,35 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
     }
 
+    function isUuid(v) {
+      return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+    }
+
     async function sbUpsertPedido(venda) {
-      if (!online || !sb) return;
+      if (!online || !sb) return { error: null };
+      // entregador "dono" e ids locais não-UUID quebram a FK no Supabase
+      const entregadorId = (venda.entregadorId && venda.entregadorId !== 'dono' && isUuid(venda.entregadorId))
+        ? venda.entregadorId : null;
+      const outroProdutoId = isUuid(venda.outroProdutoId) ? venda.outroProdutoId : null;
+      const criadoPor = (usuarioAtual && isUuid(usuarioAtual.id)) ? usuarioAtual.id : null;
+      const clienteId = isUuid(venda.clienteId) ? venda.clienteId : null;
+      if (!clienteId) {
+        return { error: { message: 'Cliente inválido para salvar online. Cadastre o cliente de novo pelo app online.' } };
+      }
       const row = {
-        id: venda.id,
+        id: isUuid(venda.id) ? venda.id : (crypto.randomUUID ? crypto.randomUUID() : venda.id),
         data: venda.data,
         data_entrega: venda.dataEntrega || null,
-        cliente_id: venda.clienteId,
+        cliente_id: clienteId,
         ano_galao: venda.anoGalao,
         qtd_galoes: venda.qtdGaloes,
         preco_galao: venda.precoGalao,
         tipo_op: venda.tipoOp,
         taxa_entrega: venda.taxaEntrega,
-        entregador_id: venda.entregadorId || null,
+        entregador_id: entregadorId,
         vazios_devolvidos: venda.vaziosDevolvidos || 0,
         vazios_pendentes: venda.vaziosPendentes || 0,
-        outro_produto_id: venda.outroProdutoId || null,
+        outro_produto_id: outroProdutoId,
         outro_qtd: venda.outroQtd || 0,
         outro_preco: venda.outroPreco || 0,
         valor_total: venda.valorTotal,
@@ -1028,10 +1041,13 @@
         status_entrega: venda.statusEntrega || 'a_entregar',
         forma_pagamento: venda.formaPagamento || null,
         obs: venda.obs || null,
-        criado_por: usuarioAtual ? usuarioAtual.id : null
+        criado_por: criadoPor
       };
+      // garante id UUID no objeto local
+      venda.id = row.id;
       const { error } = await sb.from('pedidos').upsert(row);
       if (error) console.error('sbUpsertPedido', error);
+      return { error };
     }
 
     async function sbSyncEstoque() {
@@ -1042,21 +1058,42 @@
       }
     }
 
+    /** Atualiza só um ano no estoque (menos conflito entre celular e PC) */
+    async function sbUpsertEstoqueAno(ano) {
+      if (!online || !sb || !ano) return;
+      const e = dados.estoque[ano] || { cheios: 0, vazios: 0 };
+      const { error } = await sb.from('estoque').upsert({
+        ano: String(ano),
+        cheios: e.cheios || 0,
+        vazios: e.vazios || 0
+      });
+      if (error) console.error('sbUpsertEstoqueAno', error);
+      return { error };
+    }
+
+    async function sbSyncComClientesCliente(clienteId) {
+      if (!online || !sb || !isUuid(clienteId)) return;
+      const map = dados.comClientes[clienteId] || {};
+      for (const ano of Object.keys(map)) {
+        await sb.from('com_clientes').upsert({
+          cliente_id: clienteId,
+          ano,
+          qtd: map[ano] || 0
+        });
+      }
+    }
+
     async function sbSyncComClientes() {
       if (!online || !sb) return;
       for (const cid of Object.keys(dados.comClientes || {})) {
-        for (const ano of Object.keys(dados.comClientes[cid])) {
-          await sb.from('com_clientes').upsert({
-            cliente_id: cid,
-            ano,
-            qtd: dados.comClientes[cid][ano] || 0
-          });
-        }
+        if (!isUuid(cid)) continue;
+        await sbSyncComClientesCliente(cid);
       }
     }
 
     function gerarId() {
-      if (online && window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      // Sempre preferir UUID (coluna id no Supabase é UUID)
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
       return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     }
 
@@ -2026,15 +2063,26 @@
 
       salvarDados();
       if (online && sb) {
-        await sbUpsertPedido(venda);
-        await sbSyncEstoque();
-        await sbSyncComClientes();
-        if (cli) {
+        const { error } = await sbUpsertPedido(venda);
+        if (error) {
+          // remove da lista local se não gravou no servidor
+          dados.vendas = dados.vendas.filter(v => v.id !== venda.id);
+          alert('Não foi possível salvar o pedido online.\n\n' + (error.message || error) + '\n\nVerifique a internet e tente de novo.');
+          return;
+        }
+        await sbUpsertEstoqueAno(ano);
+        await sbSyncComClientesCliente(clienteId);
+        if (cli && isUuid(clienteId)) {
           await sb.from('clientes').update({ ano_galao_atual: ano }).eq('id', clienteId);
         }
+        // Recarrega do servidor para ficar igual no celular e no PC
+        await carregarDados();
       }
       limparFormVenda();
       atualizarDashboard();
+      if (document.getElementById('page-a-receber') && !document.getElementById('page-a-receber').classList.contains('hidden')) {
+        renderAReceber();
+      }
 
       const msg = jaPago
         ? 'Pedido registrado e já marcado como entregue/pago.\n\nDeseja imprimir a notinha?'
@@ -2313,9 +2361,19 @@
       }
       salvarDados();
       if (online && sb) {
-        await sbUpsertPedido(v);
+        const { error } = await sbUpsertPedido(v);
+        if (error) {
+          alert('Não foi possível salvar online.\n\n' + (error.message || error));
+          await carregarDados();
+          fecharModalPagar();
+          renderAReceber();
+          return;
+        }
         const cli = dados.clientes.find(c => c.id === v.clienteId);
-        if (cli && v.anoGalao) await sb.from('clientes').update({ ano_galao_atual: v.anoGalao }).eq('id', v.clienteId);
+        if (cli && v.anoGalao && isUuid(v.clienteId)) {
+          await sb.from('clientes').update({ ano_galao_atual: v.anoGalao }).eq('id', v.clienteId);
+        }
+        await carregarDados();
       }
       fecharModalPagar();
       renderAReceber();
