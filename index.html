@@ -1014,7 +1014,12 @@
       const entregadorId = (venda.entregadorId && venda.entregadorId !== 'dono' && isUuid(venda.entregadorId))
         ? venda.entregadorId : null;
       const outroProdutoId = isUuid(venda.outroProdutoId) ? venda.outroProdutoId : null;
-      const criadoPor = (usuarioAtual && isUuid(usuarioAtual.id)) ? usuarioAtual.id : null;
+      // Login por e-mail usa auth.uid, que NÃO está na tabela usuarios → quebra a FK criado_por
+      let criadoPor = null;
+      if (usuarioAtual && isUuid(usuarioAtual.id)) {
+        const existe = (dados.usuarios || []).some(u => u.id === usuarioAtual.id);
+        if (existe) criadoPor = usuarioAtual.id;
+      }
       const clienteId = isUuid(venda.clienteId) ? venda.clienteId : null;
       if (!clienteId) {
         return { error: { message: 'Cliente inválido para salvar online. Cadastre o cliente de novo pelo app online.' } };
